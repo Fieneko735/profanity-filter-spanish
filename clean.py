@@ -14,7 +14,7 @@ sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure'
 from pathlib import Path
 from typing import List, Tuple
 
-from audio_profanity_detector_fast import AudioProfanityDetectorFast
+from audio_profanity_detector_fast import AudioProfanityDetectorFast, MissingBinaryError
 from video_cutter import VideoCutter
 from timestamp_merger import TimestampMerger
 from subtitle_processor import SubtitleProcessor
@@ -50,6 +50,8 @@ def main():
                        help='Max gap (seconds) between consecutive detected profanity words to merge into one phrase segment. Default: 1.5')
     parser.add_argument('--remove-timestamps', type=str, default=None,
                        help='Manually specify additional timestamps to remove (format: "start-end,start-end" e.g., "6-11,23-30")')
+    parser.add_argument('--mute-only', action='store_true',
+                       help='Mute audio during profanity segments instead of cutting video timeline.')
     parser.add_argument('--log-time', type=str, default=None,
                        help='Optional: path to write total cutting time (seconds).')
     parser.add_argument('--dump-transcript', type=str, default=None,
@@ -171,6 +173,11 @@ def main():
             else:
                 print("    ✓ No profanity detected in audio")
             print()
+        except MissingBinaryError as e:
+            print(f"  ✗ ERROR: {e}")
+            print("  Install FFmpeg and ensure ffmpeg/ffprobe are in PATH, then rerun.")
+            print("  Windows: download FFmpeg, add its bin directory to PATH, then reopen terminal.")
+            sys.exit(1)
         except Exception as e:
             print(f"  ✗ ERROR: Audio profanity detection failed: {e}")
             import traceback
@@ -265,7 +272,7 @@ def main():
         return
     
     # Step 3: Cut out segments
-    print("Step 3: Cutting out segments from video...")
+    print("Step 3: Processing detected segments in video...")
     print("-" * 60)
     if not all_segments:
         print("  WARNING: No segments to remove! Video will be copied as-is.")
@@ -273,12 +280,13 @@ def main():
         shutil.copy2(input_path, output_path)
         print(f"  Video copied to: {output_path}")
     else:
-        print(f"  Removing {len(all_segments)} segment(s) from video...")
+        action_label = "Muting" if args.mute_only else "Removing"
+        print(f"  {action_label} {len(all_segments)} segment(s) from video...")
         total_removed_time = sum(end - start for start, end in all_segments)
-        print(f"  Total time to remove: {total_removed_time:.2f} seconds ({total_removed_time/60:.2f} minutes)")
+        print(f"  Total affected time: {total_removed_time:.2f} seconds ({total_removed_time/60:.2f} minutes)")
     cutter = VideoCutter()
     cutting_start = time.time()
-    success = cutter.cut_segments(input_path, output_path, all_segments)
+    success = cutter.cut_segments(input_path, output_path, all_segments, mute_only=args.mute_only)
     elapsed = time.time() - cutting_start
     print("-" * 60)
     print(f"Total video cutting time: {elapsed:.2f} seconds")
@@ -322,6 +330,7 @@ def main():
             print(f"  ✓ Cleaned subtitles saved to: {output_subtitle}")
         else:
             print(f"  ⚠ Warning: Failed to process subtitles")
+            output_subtitle = None
         print()
     else:
         # No subtitle provided: generate subtitles for the cleaned video and attach
@@ -335,15 +344,17 @@ def main():
                 print(f"  ✓ Subtitles generated and saved to: {output_subtitle}")
             else:
                 print("  ⚠ Warning: Failed to generate subtitles for cleaned video")
+                output_subtitle = None
         except Exception as e:
             print(f"  ⚠ Warning: Subtitle generation error: {e}")
+            output_subtitle = None
         print()
     
     print("=" * 60)
     print("SUCCESS!")
     print("=" * 60)
     print(f"Cleaned video saved to: {output_path}")
-    if output_subtitle:
+    if output_subtitle and output_subtitle.exists():
         print(f"Cleaned subtitles saved to: {output_subtitle}")
     print(f"Removed {len(all_segments)} segment(s)")
     total_removed = sum(end - start for start, end in all_segments)
@@ -362,7 +373,7 @@ def main():
 
     # Optional: mux subtitles into the cleaned video container so players auto-load them
     try:
-        if output_subtitle and output_path.suffix.lower() in {'.mp4', '.mkv'}:
+        if output_subtitle and output_subtitle.exists() and output_path.suffix.lower() in {'.mp4', '.mkv'}:
             print("\nAttaching subtitles track to the cleaned video for auto-display...")
             import subprocess
             temp_muxed = output_path.with_name(f"{output_path.stem}_with_subs{output_path.suffix}")

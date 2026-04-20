@@ -4,10 +4,15 @@ Audio Profanity Detector (Faster-Whisper) - Detects profanity in audio using fas
 
 import subprocess
 import tempfile
+import shutil
 from pathlib import Path
 from typing import List, Tuple
 
 from profanity_words import PROFANITY_WORDS
+
+
+class MissingBinaryError(RuntimeError):
+    """Raised when required system binaries (ffmpeg/ffprobe) are not available."""
 
 
 class AudioProfanityDetectorFast:
@@ -89,6 +94,9 @@ class AudioProfanityDetectorFast:
         """
         if not self.whisper_model:
             return []
+
+        # Fail fast with a clear, actionable message instead of silently returning no detections.
+        self._ensure_media_binaries()
         
         temp_dir = Path(tempfile.mkdtemp())
         profanity_segments = []
@@ -261,6 +269,11 @@ class AudioProfanityDetectorFast:
                 profanity_segments = self._merge_nearby(profanity_segments)
                 print(f"  ✓ Merged into {len(profanity_segments)} segment(s)")
         
+        except FileNotFoundError as e:
+            raise MissingBinaryError(
+                "Required media tool not found while running transcription pipeline. "
+                "Please install FFmpeg (which includes ffmpeg and ffprobe) and ensure both are in PATH."
+            ) from e
         except Exception as e:
             print(f"  ✗ Error during audio profanity detection: {e}")
             import traceback
@@ -278,6 +291,19 @@ class AudioProfanityDetectorFast:
             print(f"  ✓ Successfully detected {len(profanity_segments)} profanity segment(s)")
         
         return profanity_segments
+
+    def _ensure_media_binaries(self) -> None:
+        """Verify ffmpeg and ffprobe are available in PATH."""
+        missing = []
+        if shutil.which('ffmpeg') is None:
+            missing.append('ffmpeg')
+        if shutil.which('ffprobe') is None:
+            missing.append('ffprobe')
+        if missing:
+            raise MissingBinaryError(
+                f"Missing required binary/binaries: {', '.join(missing)}. "
+                "Install FFmpeg and make sure ffmpeg/ffprobe are available in your PATH."
+            )
 
     def _next_model(self, current: str):
         """Return next larger model name or None"""

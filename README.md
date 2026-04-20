@@ -489,15 +489,24 @@ Arguments:
   output                   Output video file path
 
 Options:
-  --subs FILE             Use existing subtitle file instead of transcribing audio (20x faster)
-  --model SIZE            Whisper model: tiny, base (default), small, medium, large
-  --dialog-enhance        Enable dialog enhancement (default: enabled)
-  --no-dialog-enhance     Disable dialog enhancement (not recommended)
-  --auto-upgrade-model    Enable auto-upgrade to larger model if WPM low (default: enabled)
-  --no-auto-upgrade       Disable auto-upgrade mechanism
-  --min-wpm FLOAT         Minimum words per minute threshold (default: 50.0)
-  --mute-only             Mute audio during profanity instead of cutting segments
-  --remove-timestamps     Manually add timestamps to remove: "start-end,start-end"
+  --subs FILE             Use subtitle file (SRT/VTT). Auto-detects matching .srt/.vtt if omitted.
+  --srt-window FLOAT      Limit subtitle-cue removal window when using --use-subs-detection.
+  --pad FLOAT             Extra seconds before/after subtitle cues in subtitle-driven detection.
+  --merge-gap FLOAT       Max gap between detected segments to merge (default: 0.06).
+  --expand-pad FLOAT      Expand each detected segment before cutting/muting.
+  --model SIZE            Whisper model: tiny, base, small, medium, large.
+  --force-audio           Force audio-based detection (default behavior).
+  --use-subs-detection    Use subtitles for detection instead of audio (advanced).
+  --phrase-gap FLOAT      Max gap to merge consecutive profanity words into phrase segments.
+  --remove-timestamps     Manually add timestamps: "start-end,start-end".
+  --mute-only             Mute profanity intervals instead of cutting video timeline.
+  --dump-transcript FILE  Save raw transcript words with timestamps.
+  --dialog-enhance        Enable dialog enhancement (default: enabled).
+  --no-dialog-enhance     Disable dialog enhancement.
+  --min-wpm FLOAT         Warn if words/minute is below threshold (default: 50.0).
+  --auto-upgrade-model    Retry once with larger model if transcript quality is low.
+  --no-auto-upgrade       Disable automatic model upgrade.
+  --hybrid                Subtitle-first + selective audio detection (faster advanced mode).
 ```
 
 ---

@@ -9,6 +9,7 @@ Speed optimizations:
 """
 
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import List, Tuple
 # Removed multiprocessing - using sequential extraction with optimized CRF values
@@ -23,8 +24,9 @@ class VideoCutter:
     def __init__(self):
         pass
     
-    def cut_segments(self, input_path: Path, output_path: Path, 
-                     segments_to_remove: List[Tuple[float, float]]) -> bool:
+    def cut_segments(self, input_path: Path, output_path: Path,
+                     segments_to_remove: List[Tuple[float, float]],
+                     mute_only: bool = False) -> bool:
         """
         Cut out specified segments from video.
         
@@ -89,6 +91,10 @@ class VideoCutter:
             import shutil
             shutil.copy2(input_path, output_path)
             return True
+
+        if mute_only:
+            print("  Mute-only mode enabled: preserving timeline and muting audio in detected intervals")
+            return self._mute_segments(input_path, output_path, final_segments)
         
         # Calculate segments to KEEP (inverse of segments to remove)
         keep_segments = self._calculate_keep_segments(final_segments, duration)
@@ -101,6 +107,59 @@ class VideoCutter:
         # Get original video bitrate to match quality
         original_bitrate = self._get_video_bitrate(input_path)
         return self._apply_cuts(input_path, output_path, keep_segments, original_bitrate)
+
+    def _mute_segments(self, input_path: Path, output_path: Path,
+                       segments_to_mute: List[Tuple[float, float]]) -> bool:
+        """Mute audio only in the provided time intervals while preserving video duration."""
+        if not segments_to_mute:
+            print("  No segments to mute - copying video as-is")
+            import shutil
+            shutil.copy2(input_path, output_path)
+            return True
+
+        # Use a filter script file to avoid shell escaping/length issues.
+        # Chain volume filters so each interval is muted to silence.
+        filter_parts = [
+            f"volume=enable='between(t,{start:.3f},{end:.3f})':volume=0"
+            for start, end in segments_to_mute
+        ]
+        audio_filter = ",".join(filter_parts)
+
+        filter_script_path = None
+        try:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.af', delete=False) as script_file:
+                script_file.write(audio_filter)
+                filter_script_path = script_file.name
+
+            cmd = [
+                'ffmpeg', '-i', str(input_path),
+                '-c:v', 'copy',
+                '-filter_script:a', filter_script_path,
+                '-c:a', 'aac',
+                '-b:a', '128k',
+                '-loglevel', 'error',
+                '-y', str(output_path)
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                print("  ✓ Audio muting complete")
+                return True
+
+            print("  ✗ FFmpeg mute command failed. Return code:", result.returncode)
+            if result.stderr:
+                err_lines = [l for l in result.stderr.splitlines() if l.strip()]
+                print("    " + '\n    '.join(err_lines[:12]))
+            return False
+        except Exception as e:
+            print(f"  Error during mute-only processing: {e}")
+            return False
+        finally:
+            if filter_script_path and os.path.exists(filter_script_path):
+                try:
+                    os.remove(filter_script_path)
+                except OSError:
+                    pass
     
     def _get_duration(self, video_path: Path) -> float:
         """Get video duration in seconds"""
