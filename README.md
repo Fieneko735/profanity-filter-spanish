@@ -139,7 +139,8 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 # 2. LUEGO ESTO (resto de dependencias)
 pip install -r requirements.txt
 
-# Verifica que detecte la GPU correctamente
+# 3. Verifica que detecte la GPU correctamente
 python -c "import torch; print('CUDA disponible:', torch.cuda.is_available())"
-# Prueba el filtro
+
+# 4. Prueba el filtro
 python clean.py "TU/RUTA/VIDEO.mp4" "TU/RUTA/VIDEO_SALIDA.mp4" --model small --mute-only
