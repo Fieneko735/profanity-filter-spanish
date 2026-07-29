@@ -21,6 +21,7 @@ Simplemente es un pequeño proyecto para filtrar grocerias en español, principa
 - La mayoria del trabajo de codificacion y demas fue generada con deepseek por lo que no sabria decir que tan bien codificado este todo pero funciona correctamente al procesar videos en español.
 - Quien quiera modificarlo puede hacerlo jeje ayudaria bastante si se logra mejorar para que filtre la mayoria de grocerias de videos en español.
 - Aun se mantiene el trabajo original de filtrado para palabras en ingles asi que aun funciona para ello pero ahora con la aceleracion por GPU.
+- Esta desactivada la generacion de subtitulos para este proyecto asi que si alguien ocupa esa generacion debera modificar el codigo para reactivarlo en el archivo clean.py.
   
 ## 🚀 Instalación rápida
 
