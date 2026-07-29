@@ -42,7 +42,7 @@ python -m venv venv
 #1. INSTALA EN ORDEN PRIMERO ESTE
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
-2. #INSTALA EN ORDEN DESPUES ESTE
+2. #LUEGO ESTE
 pip install -r requirements.txt
 
 # Verifica que detecte la GPU correctamente
