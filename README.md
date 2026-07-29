@@ -30,6 +30,7 @@ Quien quiera aportar para tener un mejor filtrado en español puede hacerlo modi
 #Se probo con un video del youtuber Darkar que suele tener un contenido bastante grosero.
 #Especificamente este: https://www.youtube.com/watch?v=S-pFvPx_sqM por si alguien quiere probar su funcionalidad
 
+```bash
 (venv) PS C:\Users\black\Desktop\prueba-final\profanity-filter-spanish> python clean.py C:\Users\black\Downloads\prueba.mp4 C:\Users\black\Downloads\prueba_limpia.mp4 --model small --mute-only
 ============================================================
 AUTOMATED MOVIE CLEANER - PROFANITY FILTER
@@ -119,6 +120,7 @@ Total time removed: 12.72 seconds
 Total end-to-end processing time: 20.09 seconds
 Overall processing time written to: C:\Users\black\Downloads\prueba_limpia.total_time.txt
 
+```
 
   
 ## 🚀 Instalación rápida
