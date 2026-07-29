@@ -38,8 +38,13 @@ cd profanity-filter-spanish
 python -m venv venv
 # En Windows: venv\Scripts\activate
 # En Linux/Mac: source venv/bin/activate
+
+#1. INSTALA EN ORDEN PRIMERO ESTE
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
+2. #INSTALA EN ORDEN DESPUES ESTE
 pip install -r requirements.txt
+
 # Verifica que detecte la GPU correctamente
 python -c "import torch; print('CUDA disponible:', torch.cuda.is_available())"
 # Prueba el filtro
