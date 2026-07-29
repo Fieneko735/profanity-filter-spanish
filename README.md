@@ -3,9 +3,9 @@
 Filtro de groserías para audio/video usando **faster-whisper** con aceleración GPU por Fieneko735.  
 Ideal para streams, podcasts y grabaciones, esta es una version modificada con IA gracias a la ayuda de Deepseek, no se nada sobre codificacion por lo que no podria dar soporte o algo por el estilo. 
 
-Simplemente es un pequeño proyecto para filtrar grocerias en español, principalmente español mexicano. Aunque no llega a procesar todas asi que si alguien que sepa codificar correctamente quiere modificarlo adelante jeje despues de todo esta version para filtrar en español fue generada con ayuda de la IA por lo que no se que tan bien codificado este, aunque funciono correctamente en los videos con los que probe a filtrar se le llega a ir alguna que otra groseria. La verdad mejora bastante el contenido para que no contenga lenguaje demasiado grosero y se pueda usar en redes o en el lugar donde lo quieran subir.
+Simplemente es un pequeño proyecto para filtrar grocerias en español, principalmente español mexicano. Aunque no llega a procesar todas asi que si alguien que sepa codificar correctamente quiere modificarlo adelante jeje despues de todo esta version para filtrar en español fue generada con ayuda de la IA por lo que no se que tan bien codificado este. Funciona correctamente pero se le llegan a escapar algunas palabras asi que el contenido quedara filtrado y libre de groserias hasta cierto punto, por lo que aun necesitara alguna edicion extra para estar completamente limpio
 
-Quien quiera aportar para tener un mejor filtrado en español puede hacerlo modificando el archivo profanity_words.py, es totalmente bienvenida cualquier ayuda para mejorar la exactitud.
+Quien quiera aportar para tener un mejor filtrado en español puede hacerlo modificando el archivo profanity_words.py, es totalmente bienvenida cualquier ayuda para mejorar la exactitud del filtro.
 
 ## ⚡ Características
 - Transcripción con `faster-whisper` (GPU). (agregado por Fieneko735, no existia la posibilidad de procesar con gpu en la version original)
@@ -16,7 +16,8 @@ Quien quiera aportar para tener un mejor filtrado en español puede hacerlo modi
 ## 📦 Requisitos
 - Python 3.11
 - NVIDIA GPU con CUDA 12.4
-- FFmpeg instalado en el PATH
+- **FFmpeg**: Necesario para extraer audio de los videos.  
+  Descárgalo desde [ffmpeg.org](https://ffmpeg.org/download.html) y asegúrate de que esté en el PATH del sistema.
   
 ## Notas:
 - Esto fue probado en una pc con Ryzen 5 5600x, 32gb Ram, RTX 4070 12gb.
@@ -25,33 +26,8 @@ Quien quiera aportar para tener un mejor filtrado en español puede hacerlo modi
 - Aun se mantiene el trabajo original de filtrado para palabras en ingles asi que aun funciona para ello pero ahora con la aceleracion por GPU.
 - Esta desactivada la generacion de subtitulos para este proyecto asi que si alguien ocupa esa generacion debera modificar el codigo para reactivarlo en el archivo clean.py.
 
-## ⚠️ Requisitos adicionales
-
-- **FFmpeg**: Necesario para extraer audio de los videos.  
-  Descárgalo desde [ffmpeg.org](https://ffmpeg.org/download.html) y asegúrate de que esté en el PATH del sistema.
-  
-## 🚀 Instalación rápida
-
-```bash
-git clone https://github.com/Fieneko735/profanity-filter-spanish.git
-cd profanity-filter-spanish
-python -m venv venv
-# En Windows: venv\Scripts\activate
-# En Linux/Mac: source venv/bin/activate
-
-#1. INSTALA EN ORDEN PRIMERO ESTE
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
-
-2. #LUEGO ESTE
-pip install -r requirements.txt
-
-# Verifica que detecte la GPU correctamente
-python -c "import torch; print('CUDA disponible:', torch.cuda.is_available())"
-# Prueba el filtro
-python clean.py "TU/RUTA/VIDEO.mp4" "TU/RUTA/VIDEO_SALIDA.mp4" --model small --mute-only
-
-##SI TODO FUNCIONA CORRECTAMENTE DEBERIAS VER UNA SALIDA COMO ESTA:
-#Se probo con un video del youtuber Darkar que suelen ser bastante groceros,
+## SALIDA DE PRUEBA
+#Se probo con un video del youtuber Darkar que suele tener un contenido bastante grosero.
 #Especificamente este: https://www.youtube.com/watch?v=S-pFvPx_sqM por si alguien quiere probar su funcionalidad
 
 (venv) PS C:\Users\black\Desktop\prueba-final\profanity-filter-spanish> python clean.py C:\Users\black\Downloads\prueba.mp4 C:\Users\black\Downloads\prueba_limpia.mp4 --model small --mute-only
@@ -142,3 +118,25 @@ Removed 12 segment(s)
 Total time removed: 12.72 seconds
 Total end-to-end processing time: 20.09 seconds
 Overall processing time written to: C:\Users\black\Downloads\prueba_limpia.total_time.txt
+
+
+  
+## 🚀 Instalación rápida
+
+```bash
+git clone https://github.com/Fieneko735/profanity-filter-spanish.git
+cd profanity-filter-spanish
+python -m venv venv
+# En Windows: venv\Scripts\activate
+# En Linux/Mac: source venv/bin/activate
+
+#1. INSTALA EN ORDEN PRIMERO ESTE
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
+2. #LUEGO ESTE
+pip install -r requirements.txt
+
+# Verifica que detecte la GPU correctamente
+python -c "import torch; print('CUDA disponible:', torch.cuda.is_available())"
+# Prueba el filtro
+python clean.py "TU/RUTA/VIDEO.mp4" "TU/RUTA/VIDEO_SALIDA.mp4" --model small --mute-only
