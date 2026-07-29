@@ -24,6 +24,11 @@ Quien quiera aportar para tener un mejor filtrado en español puede hacerlo modi
 - Quien quiera modificarlo puede hacerlo jeje ayudaria bastante si se logra mejorar para que filtre la mayoria de grocerias de videos en español.
 - Aun se mantiene el trabajo original de filtrado para palabras en ingles asi que aun funciona para ello pero ahora con la aceleracion por GPU.
 - Esta desactivada la generacion de subtitulos para este proyecto asi que si alguien ocupa esa generacion debera modificar el codigo para reactivarlo en el archivo clean.py.
+
+## ⚠️ Requisitos adicionales
+
+- **FFmpeg**: Necesario para extraer audio de los videos.  
+  Descárgalo desde [ffmpeg.org](https://ffmpeg.org/download.html) y asegúrate de que esté en el PATH del sistema.
   
 ## 🚀 Instalación rápida
 
