@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 from typing import List, Tuple
+import unicodedata
 
 from profanity_words import PROFANITY_WORDS
 
@@ -15,6 +16,7 @@ class AudioProfanityDetector:
     
     # Use shared profanity word list
     PROFANITY_WORDS = PROFANITY_WORDS
+    
     def __init__(self, model_size: str = 'tiny'):
         """
         Initialize audio profanity detector.
@@ -53,6 +55,46 @@ class AudioProfanityDetector:
                 "Note: Requires PyTorch"
             )
     
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        """
+        Normalize text by removing accents and converting to lowercase.
+        Example: "cabrón" -> "cabron", "Chíngale" -> "chingale"
+        """
+        if not text:
+            return ""
+        # Normalize Unicode (NFD) and remove diacritical marks (accents)
+        normalized = unicodedata.normalize('NFD', text)
+        without_accents = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
+        return without_accents.lower()
+    
+    def _detect_profanity_in_text(self, text: str) -> List[str]:
+        """
+        Check if the text contains any profanity word or phrase.
+        Returns the list of profanity items found (words or phrases).
+        """
+        normalized = self._normalize_text(text)
+        found = []
+        
+        # Check for multi-word phrases first (to avoid partial matches)
+        # Sort phrases by length descending to match longer phrases first
+        phrases = [w for w in self.PROFANITY_WORDS if ' ' in w]
+        phrases.sort(key=len, reverse=True)
+        
+        for phrase in phrases:
+            if phrase in normalized:
+                found.append(phrase)
+                # Remove the matched phrase to avoid double-counting
+                normalized = normalized.replace(phrase, '')
+        
+        # Now check for individual words
+        words = [w for w in self.PROFANITY_WORDS if ' ' not in w]
+        for word in words:
+            if word in normalized:
+                found.append(word)
+        
+        return found
+    
     def detect(self, video_path: Path) -> List[Tuple[float, float, str]]:
         """
         Detect profanity in audio.
@@ -68,6 +110,7 @@ class AudioProfanityDetector:
         
         temp_dir = Path(tempfile.mkdtemp())
         profanity_segments = []
+        seen_segments = set()  # Avoid duplicates (start, end)
         
         try:
             # Get video duration first
@@ -127,39 +170,58 @@ class AudioProfanityDetector:
                 result = self.whisper_model.transcribe(
                     str(audio_path),
                     word_timestamps=True,
-                    language='en',
+                    language='es',  # Spanish (adjust if needed)
                     verbose=True if duration and duration > 600 else False  # Show progress for videos > 10 min
                 )
             
             print(f"  ✓ Transcription complete")
             
-            # Count total words first
+            # ---------- NEW: Detect profanity in whole segments (for phrases) ----------
+            for segment in result.get('segments', []):
+                seg_text = segment.get('text', '')
+                # Normalize and check for profanity phrases
+                normalized_seg = self._normalize_text(seg_text)
+                # Check if any phrase (multi-word) appears in this segment
+                phrases = [w for w in self.PROFANITY_WORDS if ' ' in w]
+                # Sort by length descending to match longer first
+                phrases.sort(key=len, reverse=True)
+                for phrase in phrases:
+                    if phrase in normalized_seg:
+                        start = segment.get('start', 0)
+                        end = segment.get('end', 0)
+                        key = (round(start, 2), round(end, 2))
+                        if key not in seen_segments:
+                            seen_segments.add(key)
+                            profanity_segments.append((start, end, phrase))
+                        break  # avoid adding same segment multiple times
+            
+            # ---------- Word-level detection (with normalized words) ----------
             total_words = 0
             for segment in result.get('segments', []):
                 total_words += len(segment.get('words', []))
             
-            # Find profanity words
             words_checked = 0
             for segment in result.get('segments', []):
                 for word_info in segment.get('words', []):
                     words_checked += 1
-                    word = word_info.get('word', '').strip().lower()
+                    word = word_info.get('word', '').strip()
+                    # Normalize the word (remove accents, lowercase)
+                    normalized_word = self._normalize_text(word)
                     # Remove punctuation from end
-                    word = word.rstrip('.,!?;:')
+                    normalized_word = normalized_word.rstrip('.,!?;:')
                     
-                    # Check if word is profanity using EXACT match only (whole word)
-                    # This prevents false positives like "house" matching "whore"
-                    # or "hour" matching "whore"
-                    if word in self.PROFANITY_WORDS:
+                    # Check if normalized word is in PROFANITY_WORDS (all words are already normalized)
+                    if normalized_word in self.PROFANITY_WORDS:
                         start = word_info.get('start', 0)
                         end = word_info.get('end', 0)
-                        # Add small padding around word (reduced for more accuracy)
-                        padding = 0.15  # Reduced from 0.3 to 0.15 for more precise cuts
-                        profanity_segments.append((
-                            max(0, start - padding),
-                            end + padding,
-                            word
-                        ))
+                        # Add small padding
+                        padding = 0.15
+                        start_padded = max(0, start - padding)
+                        end_padded = end + padding
+                        key = (round(start_padded, 2), round(end_padded, 2))
+                        if key not in seen_segments:
+                            seen_segments.add(key)
+                            profanity_segments.append((start_padded, end_padded, normalized_word))
                     
                     # Progress update every 1000 words
                     if words_checked % 1000 == 0:
@@ -223,4 +285,3 @@ class AudioProfanityDetector:
         
         merged.append((current_start, current_end, ', '.join(sorted(current_words_set))))
         return merged
-

@@ -1,45 +1,29 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
+# Entornos virtuales
 venv/
-env/
-ENV/
-*.egg-info/
-dist/
-build/
+profanity-filter-311/
+*.pyc
+__pycache__/
 
-# Movies and video files (exclude from repo)
-movies/
-# Exclude ALL sample videos (too large for Hugging Face)
-sample/*.mp4
-sample/*.mkv
-sample/*.avi
-# Ignore faster-whisper test artifacts
-sample/*faster_whisper*
-
-# Keep sample subtitles for examples
-!sample/*.srt
-!sample/cleaned/*.srt
-
-# Logs and temporary files
-*.log
-processing_log.txt
-*.tmp
-*.temp
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
+# Archivos de sistema
 .DS_Store
 Thumbs.db
 
-# Model cache (Whisper downloads models)
-.whisper/
+# Archivos temporales de audio/video
+*.wav
+*.mp4
+*.mov
+*.avi
+temp/
+
+# Archivos de transcripción
+*.txt
+*.srt
+*.vtt
+
+# Archivos de logs
+*.log
+*.out
+
+# Archivos de configuración local
+.env
+*.local

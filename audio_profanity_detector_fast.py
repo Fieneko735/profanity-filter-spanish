@@ -1,10 +1,13 @@
 """
 Audio Profanity Detector (Faster-Whisper) - Detects profanity in audio using faster-whisper
+Optimized for GPU acceleration with automatic fallback to CPU on CUDA errors.
 """
 
 import subprocess
 import tempfile
 import shutil
+import sys
+import time
 from pathlib import Path
 from typing import List, Tuple
 
@@ -18,37 +21,18 @@ class MissingBinaryError(RuntimeError):
 class AudioProfanityDetectorFast:
     """Detects profanity in audio using faster-whisper with optional enhancements"""
 
-    PROFANITY_WORDS = PROFANITY_WORDS
-    
-    # Common profanity phrases to detect as complete units
-    PROFANITY_PHRASES = {
-        'fuck you', 'fuck off', 'fuck this', 'fuck that', 'fuck me', 'fuck her', 'fuck him',
-        'shit head', 'shit face', 'shit for brains', 'bull shit', 'bullshit',
-        'ass hole', 'asshole', 'dumb ass', 'dumbass', 'smart ass', 'smartass',
-        'son of a bitch', 'sonofabitch', 'mother fucker', 'motherfucker',
-        'piece of shit', 'dick head', 'dickhead', 'cock sucker', 'cocksucker',
-        'piss off', 'piss off', 'screw you', 'screw off'
-    }
+    PROFANITY_WORDS_SET = set(PROFANITY_WORDS)
+    PROFANITY_PHRASES = [p for p in PROFANITY_WORDS if ' ' in p]
 
-    _MODEL_ORDER = ['tiny', 'base', 'small', 'medium', 'large']
+    _MODEL_ORDER = ['tiny', 'base', 'small', 'medium', 'large', 'large-v2', 'large-v3']
 
     def __init__(self,
-                 model_size: str = 'base',  # Changed from 'tiny' to 'base' for better accuracy
+                 model_size: str = 'base',
                  phrase_gap: float = 1.5,
                  dialog_enhance: bool = False,
                  dump_transcript_path: str = None,
                  min_wpm: float = 40.0,
                  auto_upgrade: bool = False):
-        """Initialize audio profanity detector.
-
-        Args:
-            model_size: Whisper model size (tiny, base, small, medium, large)
-            phrase_gap: gap (s) to merge consecutive profanity words
-            dialog_enhance: apply speech-focused filtering before transcription
-            dump_transcript_path: write raw transcript words with timestamps
-            min_wpm: warn if words per minute below threshold
-            auto_upgrade: retry with next larger model once if WPM < min_wpm
-        """
         self.model_size = model_size
         self.phrase_gap = phrase_gap
         self.dialog_enhance = dialog_enhance
@@ -56,46 +40,154 @@ class AudioProfanityDetectorFast:
         self.min_wpm = min_wpm
         self.auto_upgrade = auto_upgrade
         self._upgraded_once = False
+        self._cuda_failed = False  # Flag para recordar que CUDA falló
         self.whisper_model = None
+        self._device = self._detect_best_device()
         self._init_whisper()
-    
+
+    def _detect_best_device(self) -> str:
+        """Detecta el mejor dispositivo disponible: CUDA > DirectML > CPU"""
+        print("  🔍 Detecting best available device...")
+        
+        # 1. Intentar CUDA
+        try:
+            import torch
+            if torch.cuda.is_available():
+                print(f"  ✅ CUDA detected: {torch.cuda.get_device_name(0)}")
+                return 'cuda'
+        except:
+            pass
+        
+        # 2. Intentar DirectML (Windows)
+        try:
+            import torch_directml
+            if torch_directml.is_available():
+                print("  ✅ DirectML detected (Windows GPU acceleration)")
+                return 'dml'
+        except:
+            pass
+        
+        # 3. Fallback a CPU
+        print("  ℹ️ No GPU acceleration found. Using CPU (slower).")
+        return 'cpu'
+
     def _init_whisper(self):
-        """Initialize faster-whisper model"""
+        """Initialize faster-whisper model with the best available device"""
         try:
             from faster_whisper import WhisperModel
             
+            # Si ya marcamos que CUDA falló, forzar CPU
+            if self._cuda_failed:
+                print("  ⚠️ CUDA previously failed. Forcing CPU mode.")
+                self._device = 'cpu'
+            
+            # Lista de compute types a probar
+            if self._device == 'cuda':
+                compute_types = ['float16', 'int8_float16', 'int8', 'float32']
+            elif self._device == 'dml':
+                compute_types = ['float16', 'int8_float16', 'int8', 'float32']
+            else:  # CPU
+                compute_types = ['int8_float16', 'int8', 'float32']
+            
             print(f"  Loading faster-whisper model: {self.model_size}...")
-            # Try different compute types for CPU (int8_float16 first for best speed/accuracy balance)
-            for compute_type in ['int8_float16', 'int8', 'float32']:
+            print(f"  Device: {self._device}")
+            
+            model_loaded = False
+            last_error = None
+            
+            for compute_type in compute_types:
                 try:
-                    self.whisper_model = WhisperModel(self.model_size, device='cpu', compute_type=compute_type)
-                    print(f"  ✓ Faster-whisper model loaded (compute_type={compute_type})")
+                    print(f"    Trying compute_type={compute_type}...")
+                    self.whisper_model = WhisperModel(
+                        self.model_size,
+                        device=self._device,
+                        compute_type=compute_type,
+                        cpu_threads=8 if self._device == 'cpu' else 0,
+                        num_workers=4 if self._device == 'cpu' else 1
+                    )
+                    print(f"  ✅ Faster-whisper loaded! (device={self._device}, compute_type={compute_type})")
+                    model_loaded = True
                     break
-                except ValueError:
+                except Exception as e:
+                    print(f"    ⚠️ Error with compute_type={compute_type}: {e}")
+                    last_error = e
                     continue
             
-            if self.whisper_model is None:
-                raise RuntimeError("Could not initialize faster-whisper with any compute type")
+            # Si ningún compute_type funcionó, intentar con CPU como último recurso
+            if not model_loaded:
+                print("  ⚠️ GPU initialization failed. Falling back to CPU...")
+                self._device = 'cpu'
+                for compute_type in ['int8_float16', 'int8', 'float32']:
+                    try:
+                        self.whisper_model = WhisperModel(
+                            self.model_size,
+                            device='cpu',
+                            compute_type=compute_type,
+                            cpu_threads=8,
+                            num_workers=4
+                        )
+                        print(f"  ✅ Faster-whisper loaded on CPU (compute_type={compute_type})")
+                        model_loaded = True
+                        break
+                    except Exception as e:
+                        print(f"    ⚠️ CPU error: {e}")
+                        continue
+                
+                if not model_loaded:
+                    raise RuntimeError(f"Could not initialize faster-whisper. Last error: {last_error}")
                 
         except ImportError:
             raise ImportError(
                 "faster-whisper not installed. Install with: pip install faster-whisper"
             )
-    
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize faster-whisper: {e}")
+
+    def _transcribe_with_fallback(self, audio_path: Path):
+        """
+        Intenta transcribir con el dispositivo actual. Si falla por CUDA,
+        cambia a CPU y reintenta automáticamente.
+        """
+        try:
+            # Primero, intentar con el dispositivo actual
+            segments, info = self.whisper_model.transcribe(
+                str(audio_path),
+                beam_size=5,
+                word_timestamps=True,
+                language='es'
+            )
+            return segments, info
+        except RuntimeError as e:
+            error_msg = str(e).lower()
+            # Si el error es por CUDA (cublas, cuda, etc.)
+            if "cublas" in error_msg or "cuda" in error_msg or "library" in error_msg:
+                print(f"  ⚠️ CUDA runtime error detected: {e}")
+                print(f"  🔄 Automatically switching to CPU and retrying...")
+                
+                # Marcar que CUDA falló
+                self._cuda_failed = True
+                self._device = 'cpu'
+                # Re-inicializar el modelo en CPU
+                self._init_whisper()
+                
+                # Reintentar transcripción en CPU
+                print(f"  ⏳ Retrying transcription on CPU...")
+                segments, info = self.whisper_model.transcribe(
+                    str(audio_path),
+                    beam_size=5,
+                    word_timestamps=True,
+                    language='es'
+                )
+                return segments, info
+            else:
+                # Otro tipo de error, no relacionado con CUDA
+                raise
+
     def detect(self, video_path: Path) -> List[Tuple[float, float, str]]:
-        """
-        Detect profanity in audio.
-        
-        Args:
-            video_path: Path to video file
-            
-        Returns:
-            List of (start_time, end_time, word) tuples for profanity segments
-        """
+        """Detect profanity in audio."""
         if not self.whisper_model:
             return []
 
-        # Fail fast with a clear, actionable message instead of silently returning no detections.
         self._ensure_media_binaries()
         
         temp_dir = Path(tempfile.mkdtemp())
@@ -116,42 +208,39 @@ class AudioProfanityDetectorFast:
             except:
                 duration = None
             
-            # Extract audio with optional dialog enhancement
+            # Extract audio
             print(f"  Extracting audio from video{' (dialog enhance)' if self.dialog_enhance else ''}...")
             audio_path = temp_dir / 'audio.wav'
             filter_chain = None
             if self.dialog_enhance:
-                # Emphasize vocal range, normalize dynamics, modest amplification
                 filter_chain = 'highpass=f=200,lowpass=f=3500,dynaudnorm=f=75,volume=1.3'
             cmd = ['ffmpeg', '-i', str(video_path)]
             if filter_chain:
                 cmd += ['-af', filter_chain]
             cmd += [
-                '-ar', '16000',  # Whisper expects 16kHz
-                '-ac', '1',       # Mono
+                '-ar', '16000',
+                '-ac', '1',
                 '-loglevel', 'error',
                 '-y', str(audio_path)
             ]
             subprocess.run(cmd, capture_output=True, check=True)
             print(f"  ✓ Audio extracted")
             
-            # Transcribe with faster-whisper
+            # Transcribe with fallback
             print(f"  Transcribing audio with faster-whisper ({self.model_size} model)...")
             if duration:
-                est_time = duration / 10  # faster-whisper is roughly 10x real-time on CPU
+                # Estimar tiempo según dispositivo
+                if self._device in ['cuda', 'dml']:
+                    est_time = duration / 30
+                else:
+                    est_time = duration / 5
                 print(f"  ⏳ Estimated time: ~{est_time:.1f} seconds for {duration/60:.1f} min video")
             
-            import time
             start_time = time.time()
             
-            segments, info = self.whisper_model.transcribe(
-                str(audio_path),
-                beam_size=5,  # Full accuracy: matches non-optimized version (was 1 for speed)
-                word_timestamps=True,
-                language='en'
-            )
+            # Usar el método con fallback
+            segments, info = self._transcribe_with_fallback(audio_path)
             
-            # Convert generator to list and get all words
             all_words = []
             for segment in segments:
                 for word in segment.words:
@@ -160,23 +249,18 @@ class AudioProfanityDetectorFast:
             elapsed = time.time() - start_time
             print(f"  ✓ Transcription complete in {elapsed:.1f}s ({info.duration/elapsed:.1f}x real-time)")
 
-            # Words per minute diagnostic
+            # WPM diagnostic
             if info.duration and info.duration > 0:
                 wpm = len(all_words) / (info.duration / 60.0)
                 print(f"  Transcript stats: {len(all_words)} words, {wpm:.1f} WPM")
-                if wpm < self.min_wpm:
-                    print(f"  ⚠ Low WPM (<{self.min_wpm:.0f}) indicates under-transcription; audio may be complex or model too small.")
-                    # Auto-upgrade logic (single retry)
-                    if self.auto_upgrade and not self._upgraded_once:
-                        next_model = self._next_model(self.model_size)
-                        if next_model:
-                            print(f"  ↻ Auto-upgrade enabled: retrying with larger model '{next_model}'...")
-                            self.model_size = next_model
-                            self._upgraded_once = True
-                            self._init_whisper()  # reload model
-                            return self._retry_transcribe(audio_path)
-                        else:
-                            print("  ℹ Already at largest model; cannot upgrade further.")
+                if wpm < self.min_wpm and self.auto_upgrade and not self._upgraded_once:
+                    next_model = self._next_model(self.model_size)
+                    if next_model:
+                        print(f"  ↻ Auto-upgrade enabled: retrying with larger model '{next_model}'...")
+                        self.model_size = next_model
+                        self._upgraded_once = True
+                        self._init_whisper()
+                        return self._retry_transcribe(audio_path)
 
             # Dump transcript if requested
             if self.dump_transcript_path:
@@ -188,91 +272,21 @@ class AudioProfanityDetectorFast:
                 except Exception as e:
                     print(f"  ⚠ Failed to dump transcript: {e}")
             
-            # Find profanity words and phrases
+            # Detect profanity
             print(f"  Searching {len(all_words)} words for profanity...")
+            profanity_segments = self._detect_profanity_in_words(all_words)
             
-            # First pass: detect individual profanity words
-            for word_info in all_words:
-                word = word_info.word.strip().lower().rstrip('.,!?;:')
-                if word in self.PROFANITY_WORDS:
-                    start = word_info.start
-                    end = word_info.end
-                    padding = 0.15  # Match parent app padding (0.15s to catch partial sounds)
-                    profanity_segments.append((
-                        max(0, start - padding),
-                        end + padding,
-                        word
-                    ))
-            
-            # Second pass: detect profanity phrases (2-word combinations)
-            for i in range(len(all_words) - 1):
-                word1_info = all_words[i]
-                word2_info = all_words[i + 1]
-                
-                word1 = word1_info.word.strip().lower().rstrip('.,!?;:')
-                word2 = word2_info.word.strip().lower().rstrip('.,!?;:')
-                
-                phrase = f"{word1} {word2}"
-                if phrase in self.PROFANITY_PHRASES:
-                    start = word1_info.start
-                    end = word2_info.end
-                    padding = 0.15  # Match parent app padding (0.15s to catch partial sounds)
-                    profanity_segments.append((
-                        max(0, start - padding),
-                        end + padding,
-                        phrase
-                    ))
-            
-            # Third pass: Enhanced phrase detection - look for non-consecutive phrases
-            # This catches cases where "fuck" and "you" might have gaps or be detected separately
-            # Check if profanity word is followed by phrase completion words within phrase_gap
-            phrase_completions = {
-                'fuck': ['you', 'off', 'this', 'that', 'me', 'her', 'him'],
-                'shit': ['head', 'face'],
-                'ass': ['hole'],
-                'dick': ['head'],
-                'cock': ['sucker'],
-                'piss': ['off'],
-                'screw': ['you', 'off']
-            }
-            
-            for i, word_info in enumerate(all_words):
-                word = word_info.word.strip().lower().rstrip('.,!?;:')
-                if word in phrase_completions:
-                    # Look ahead for completion words within phrase_gap
-                    for j in range(i + 1, min(i + 3, len(all_words))):  # Check up to 10 words ahead
-                        next_word_info = all_words[j]
-                        next_word = next_word_info.word.strip().lower().rstrip('.,!?;:')
-                        
-                        # Check if next word completes a phrase
-                        if next_word in phrase_completions[word]:
-                            # Check if within phrase_gap distance
-                            time_gap = next_word_info.start - word_info.end
-                            if time_gap <= 0.5:
-                                # Found a phrase match - create segment covering both words
-                                phrase = f"{word} {next_word}"
-                                start = word_info.start
-                                end = next_word_info.end
-                                padding = 0.15  # Match parent app padding (0.15s to catch partial sounds)
-                                profanity_segments.append((
-                                    max(0, start - padding),
-                                    end + padding,
-                                    phrase
-                                ))
-                                break  # Found completion, move to next word
-            
-            print(f"  ✓ Profanity search complete: {len(profanity_segments)} profanity segment(s) found")
-            
-            # Merge nearby profanity (within 1 second)
             if profanity_segments:
+                print(f"  ✓ Profanity search complete: {len(profanity_segments)} segment(s) found")
                 print(f"  Merging nearby profanity segments...")
                 profanity_segments = self._merge_nearby(profanity_segments)
                 print(f"  ✓ Merged into {len(profanity_segments)} segment(s)")
-        
+            else:
+                print(f"  ⚠ No profanity segments detected")
+            
         except FileNotFoundError as e:
             raise MissingBinaryError(
-                "Required media tool not found while running transcription pipeline. "
-                "Please install FFmpeg (which includes ffmpeg and ffprobe) and ensure both are in PATH."
+                "Required media tool not found. Please install FFmpeg (ffmpeg and ffprobe) and ensure both are in PATH."
             ) from e
         except Exception as e:
             print(f"  ✗ Error during audio profanity detection: {e}")
@@ -280,20 +294,13 @@ class AudioProfanityDetectorFast:
             traceback.print_exc()
             profanity_segments = []
         finally:
-            # Clean up temp directory
-            import shutil
             if temp_dir.exists():
                 shutil.rmtree(temp_dir)
-        
-        if not profanity_segments:
-            print(f"  ⚠ No profanity segments detected or detection failed")
-        else:
-            print(f"  ✓ Successfully detected {len(profanity_segments)} profanity segment(s)")
         
         return profanity_segments
 
     def _ensure_media_binaries(self) -> None:
-        """Verify ffmpeg and ffprobe are available in PATH."""
+        """Verify ffmpeg and ffprobe are available."""
         missing = []
         if shutil.which('ffmpeg') is None:
             missing.append('ffmpeg')
@@ -302,11 +309,11 @@ class AudioProfanityDetectorFast:
         if missing:
             raise MissingBinaryError(
                 f"Missing required binary/binaries: {', '.join(missing)}. "
-                "Install FFmpeg and make sure ffmpeg/ffprobe are available in your PATH."
+                "Install FFmpeg and make sure ffmpeg/ffprobe are in your PATH."
             )
 
     def _next_model(self, current: str):
-        """Return next larger model name or None"""
+        """Return next larger model name or None."""
         if current not in self._MODEL_ORDER:
             return None
         idx = self._MODEL_ORDER.index(current)
@@ -315,18 +322,13 @@ class AudioProfanityDetectorFast:
         return None
 
     def _retry_transcribe(self, audio_path: Path):
-        """Retry transcription after model upgrade, re-running profanity detection pipeline."""
-        import time
+        """Retry transcription after model upgrade."""
         profanity_segments = []
         try:
             print(f"  ▶ Re-transcribing with upgraded model '{self.model_size}'...")
             start_time = time.time()
-            segments, info = self.whisper_model.transcribe(
-                str(audio_path),
-                beam_size=5,  # Full accuracy: matches non-optimized version (was 1 for speed)
-                word_timestamps=True,
-                language='en'
-            )
+            # Usar fallback también aquí
+            segments, info = self._transcribe_with_fallback(audio_path)
             all_words = []
             for segment in segments:
                 for word in segment.words:
@@ -344,97 +346,13 @@ class AudioProfanityDetectorFast:
                 except Exception as e:
                     print(f"  ⚠ Failed to dump transcript: {e}")
             print(f"  Searching {len(all_words)} words for profanity...")
-            
-            # First pass: detect individual profanity words
-            for word_info in all_words:
-                word = word_info.word.strip().lower().rstrip('.,!?;:')
-                if word in self.PROFANITY_WORDS:
-                    start = word_info.start
-                    end = word_info.end
-                    padding = 0.15  # Match parent app padding (0.15s to catch partial sounds)
-                    profanity_segments.append((
-                        max(0, start - padding),
-                        end + padding,
-                        word
-                    ))
-            
-            # Second pass: detect profanity phrases (2-word combinations)
-            for i in range(len(all_words) - 1):
-                word1_info = all_words[i]
-                word2_info = all_words[i + 1]
-                
-                word1 = word1_info.word.strip().lower().rstrip('.,!?;:')
-                word2 = word2_info.word.strip().lower().rstrip('.,!?;:')
-                
-                phrase = f"{word1} {word2}"
-                if phrase in self.PROFANITY_PHRASES:
-                    start = word1_info.start
-                    end = word2_info.end
-                    padding = 0.15  # Match parent app padding (0.15s to catch partial sounds)
-                    profanity_segments.append((
-                        max(0, start - padding),
-                        end + padding,
-                        phrase
-                    ))
-            
-            # Third pass: Enhanced phrase detection - look for nearby phrase completions
-            # This catches cases where "fuck" and "you" might have a small gap (1-2 words max)
-            # Only checks next 2 words ahead, not 10, since phrases like "fuck you" are adjacent
-            phrase_completions = {
-                'fuck': ['you', 'off', 'this', 'that', 'me', 'her', 'him'],
-                'shit': ['head', 'face'],
-                'ass': ['hole'],
-                'dick': ['head'],
-                'cock': ['sucker'],
-                'piss': ['off'],
-                'screw': ['you', 'off']
-            }
-            
-            for i, word_info in enumerate(all_words):
-                word = word_info.word.strip().lower().rstrip('.,!?;:')
-                if word in phrase_completions:
-                    # Look ahead only 1-2 words (not 10) since phrases are adjacent
-                    for j in range(i + 1, min(i + 3, len(all_words))):  # Check next 2 words only
-                        next_word_info = all_words[j]
-                        next_word = next_word_info.word.strip().lower().rstrip('.,!?;:')
-                        
-                        # Check if next word completes a phrase
-                        if next_word in phrase_completions[word]:
-                            # Check if within reasonable time distance (0.5s for adjacent words)
-                            time_gap = next_word_info.start - word_info.end
-                            if time_gap <= 0.5:  # 0.5s max gap for adjacent phrase words
-                                # Found a phrase match - create segment covering both words
-                                phrase = f"{word} {next_word}"
-                                start = word_info.start
-                                end = next_word_info.end
-                                padding = 0.15  # Match parent app padding (0.15s to catch partial sounds)
-                                profanity_segments.append((
-                                    max(0, start - padding),
-                                    end + padding,
-                                    phrase
-                                ))
-                                break  # Found completion, move to next word
-            
-            print(f"  ✓ Profanity search complete: {len(profanity_segments)} profanity segment(s) found")
-            if profanity_segments:
-                print(f"  Merging nearby profanity segments...")
-                profanity_segments = self._merge_nearby(profanity_segments)
-                print(f"  ✓ Merged into {len(profanity_segments)} segment(s)")
+            profanity_segments = self._detect_profanity_in_words(all_words)
         except Exception as e:
             print(f"  ✗ Error during upgraded transcription: {e}")
-        if not profanity_segments:
-            print(f"  ⚠ No profanity segments detected or detection failed (upgraded run)")
-        else:
-            print(f"  ✓ Successfully detected {len(profanity_segments)} profanity segment(s) (upgraded)")
         return profanity_segments
     
     def _merge_nearby(self, segments: List[Tuple[float, float, str]]) -> List[Tuple[float, float, str]]:
-        """Merge profanity segments that are close together
-        
-        Uses aggressive merging to catch split phrases like 'fuck you', 'shit head', etc.
-        Since we only detect actual profanity words, consecutive profanity within 1.5s
-        is almost certainly part of the same phrase.
-        """
+        """Merge profanity segments that are close together."""
         if not segments:
             return []
         
@@ -444,9 +362,6 @@ class AudioProfanityDetectorFast:
         current_words_set = {current_words}
         
         for start, end, word in segments[1:]:
-            # Aggressively merge consecutive profanity words within 1.5 seconds
-            # This catches split phrases where Whisper detects words separately
-            # e.g., "fuck" (79.76-80.08) + "you" (80.08-80.88) -> merge into one segment
             if start <= current_end + self.phrase_gap:
                 current_end = max(current_end, end)
                 current_words_set.add(word)
@@ -457,3 +372,39 @@ class AudioProfanityDetectorFast:
         
         merged.append((current_start, current_end, ', '.join(sorted(current_words_set))))
         return merged
+
+    def _detect_profanity_in_words(self, all_words: List) -> List[Tuple[float, float, str]]:
+        """Detect profanity by scanning through all words and grouping them into segments."""
+        if not all_words:
+            return []
+        
+        all_words.sort(key=lambda w: w.start)
+        profanity_segments = []
+        i = 0
+        n = len(all_words)
+        
+        while i < n:
+            word_info = all_words[i]
+            word = word_info.word.strip().lower().rstrip('.,!?;:')
+            
+            phrase_found = False
+            max_lookahead = min(5, n - i)
+            for j in range(i, i + max_lookahead):
+                phrase_words = []
+                for k in range(i, j + 1):
+                    phrase_words.append(all_words[k].word.strip().lower().rstrip('.,!?;:'))
+                phrase = ' '.join(phrase_words)
+                if phrase in self.PROFANITY_PHRASES:
+                    start = all_words[i].start
+                    end = all_words[j].end
+                    profanity_segments.append((start, end, phrase))
+                    i = j + 1
+                    phrase_found = True
+                    break
+            
+            if not phrase_found:
+                if word in self.PROFANITY_WORDS_SET:
+                    profanity_segments.append((word_info.start, word_info.end, word))
+                i += 1
+        
+        return profanity_segments

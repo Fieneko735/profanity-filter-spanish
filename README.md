@@ -1,3 +1,38 @@
+# 🎙️ Profanity Filter
+
+Filtro de groserías en audio/video usando **faster-whisper** con aceleración GPU por Fieneko735.  
+Ideal para streams, podcasts y grabaciones, esta es una version modificada con IA gracias a la ayuda de Deepseek, no se codificar por lo que no podria dar soporte o algo por el estilo, simplemente es
+un pequeño proyecto para filtrar grocerias en español, principalmente español mexicano para generar versiones sin demaciadas grocerias, aunque no llega a procesar todas asi que si alguien que si sepa codificar
+correctamente quiere modificarlo adelante jeje al final de cuentas esta version para filtrar en español fue generada con la IA por lo que no se que tambien hecho este, aunque funciona correctamente en los videos
+con los que probe a filtrar se le llega a ir alguna que otra, si mejora bastante el contenido para que no sea grosero para usarlo en redes o en el lugar donde lo quieran subir, ademas quien quiera aportar para tener un
+mejor filtrado en español modificando el archivo profanity_words.py es totalmente bienvenido para mejorar la exactitud.
+
+## ⚡ Características
+- Transcripción con `faster-whisper` (GPU). (agregado por Fieneko735, no existia la posibilidad de procesar con gpu en la version original)
+- Detección de groserías en español mexicano. (agregado por Fieneko735, igualmente no existia el español solo filtraba contenido en ingles)
+- Silencio o corte de segmentos ofensivos.
+- Soporte para cualquier formato de video (MP4, MKV, AVI, etc.).
+- Nota: Esto fue probado en una pc con Ryzen 5 5600x, 32gb Ram, RTX 4070 12gb.
+
+## 📦 Requisitos
+- Python 3.11
+- NVIDIA GPU con CUDA 12.4
+- FFmpeg instalado en el PATH
+
+## 🚀 Instalación rápida
+
+```bash
+git clone https://github.com/Fieneko735/profanity-filter.git
+cd profanity-filter
+python -m venv venv
+source venv/bin/activate  # En Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+## Uso
+python clean.py video_entrada.mp4 video_salida.mp4 --model small --mute-only
+
+---
+ORIGINAL
 ---
 title: Free Profanity Filter for Movies & Videos - VidAngel & ClearPlay Alternative
 emoji: 🎬

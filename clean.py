@@ -18,7 +18,7 @@ from audio_profanity_detector_fast import AudioProfanityDetectorFast, MissingBin
 from video_cutter import VideoCutter
 from timestamp_merger import TimestampMerger
 from subtitle_processor import SubtitleProcessor
-from generate_subtitles import generate_subtitles
+# from generate_subtitles import generate_subtitles   # <--- DESACTIVADO: ya no se generan subtítulos automáticos
 
 
 def main():
@@ -40,7 +40,7 @@ def main():
                        help='Max gap (seconds) between segments to merge. Default: 0.06 (minimal, per-word behavior)')
     parser.add_argument('--expand-pad', type=float, default=0.0,
                        help='Expand each detected segment by this padding before cutting (applied to start and end). Default: 0.0 to avoid trimming clean syllables (matches parent app behavior)')
-    parser.add_argument('--model', type=str, default='base',  # Changed from 'tiny' to 'base' for better accuracy
+    parser.add_argument('--model', type=str, default='base',
                        help='Whisper model size: tiny (fastest, 3-5x faster), base (recommended), small, medium, large (most accurate). Default: tiny (speed-optimized)')
     parser.add_argument('--force-audio', action='store_true',
                        help='Use audio transcription to detect profanities (default behavior). Subtitles, if provided/auto-detected, are used only for text cleaning and embedding.')
@@ -303,7 +303,11 @@ def main():
         print("Error: Failed to process video")
         sys.exit(1)
     
-    # Step 4: Process subtitles (always process if available, including generated ones)
+    # ======================================================================
+    # MODIFICACIÓN: DESACTIVADA GENERACIÓN DE SUBTÍTULOS AUTOMÁTICOS
+    # Ya no se generan subtítulos automáticos. Solo se procesan si el usuario
+    # proporcionó un archivo de subtítulos de entrada (--subs o detección automática).
+    # ======================================================================
     output_subtitle = None
     if subtitle_input:
         print("Step 4: Processing subtitles...")
@@ -333,29 +337,27 @@ def main():
             output_subtitle = None
         print()
     else:
-        # No subtitle provided: generate subtitles for the cleaned video and attach
-        try:
-            print("Step 4: Generating subtitles for cleaned video...")
-            output_dir = output_path.parent
-            output_base = output_path.stem
-            output_subtitle = output_dir / f"{output_base}.srt"
-            ok = generate_subtitles(output_path, output_subtitle, args.model)
-            if ok:
-                print(f"  ✓ Subtitles generated and saved to: {output_subtitle}")
-            else:
-                print("  ⚠ Warning: Failed to generate subtitles for cleaned video")
-                output_subtitle = None
-        except Exception as e:
-            print(f"  ⚠ Warning: Subtitle generation error: {e}")
-            output_subtitle = None
-        print()
+        # ----------------------------------------------------------
+        # BLOQUE DESACTIVADO: Generación automática de subtítulos
+        # ----------------------------------------------------------
+        # print("Step 4: No subtitle input provided. Skipping subtitle generation.")
+        # No se genera ningún subtítulo, ni se incrusta en el vídeo.
+        pass
+    
+    # ======================================================================
+    # MODIFICACIÓN: ELIMINADA LA INCRUSTACIÓN DE SUBTÍTULOS EN EL CONTENEDOR
+    # Ya no se añade ninguna pista de subtítulos al vídeo de salida.
+    # ======================================================================
+    # El bloque que hacía muxing de subtítulos ha sido eliminado.
     
     print("=" * 60)
     print("SUCCESS!")
     print("=" * 60)
     print(f"Cleaned video saved to: {output_path}")
     if output_subtitle and output_subtitle.exists():
-        print(f"Cleaned subtitles saved to: {output_subtitle}")
+        print(f"Cleaned subtitles saved to: {output_subtitle} (external file, not embedded)")
+    else:
+        print("No subtitles were generated or embedded.")
     print(f"Removed {len(all_segments)} segment(s)")
     total_removed = sum(end - start for start, end in all_segments)
     print(f"Total time removed: {total_removed:.2f} seconds")
@@ -371,34 +373,6 @@ def main():
     except Exception as e:
         print(f"Warning: failed to write total-time file: {e}")
 
-    # Optional: mux subtitles into the cleaned video container so players auto-load them
-    try:
-        if output_subtitle and output_subtitle.exists() and output_path.suffix.lower() in {'.mp4', '.mkv'}:
-            print("\nAttaching subtitles track to the cleaned video for auto-display...")
-            import subprocess
-            temp_muxed = output_path.with_name(f"{output_path.stem}_with_subs{output_path.suffix}")
-            # For MP4, convert SRT to mov_text; for MKV, we can copy srt
-            if output_path.suffix.lower() == '.mp4':
-                cmd = [
-                    'ffmpeg', '-i', str(output_path), '-i', str(output_subtitle),
-                    '-map', '0', '-map', '1', '-c:v', 'copy', '-c:a', 'copy', '-c:s', 'mov_text',
-                    '-metadata:s:s:0', 'language=en', '-loglevel', 'error', '-y', str(temp_muxed)
-                ]
-            else:  # .mkv
-                cmd = [
-                    'ffmpeg', '-i', str(output_path), '-i', str(output_subtitle),
-                    '-map', '0', '-map', '1', '-c', 'copy',
-                    '-metadata:s:s:0', 'language=en', '-loglevel', 'error', '-y', str(temp_muxed)
-                ]
-            subprocess.run(cmd, check=True)
-            # Replace original with muxed to keep expected filename
-            import os
-            os.replace(temp_muxed, output_path)
-            print(f"✓ Subtitles attached inside: {output_path}")
-    except Exception as e:
-        print(f"⚠ Warning: Failed to attach subtitles into video: {e}")
-
 
 if __name__ == '__main__':
     main()
-

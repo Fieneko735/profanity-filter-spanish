@@ -1,16 +1,18 @@
+# -*- coding: utf-8 -*-
 """
 Shared profanity word list - curse, sexual, abusive, adultery, f-words, obscene language
 Used by both audio_profanity_detector.py and subtitle_processor.py
 """
 
 # Comprehensive profanity list - curse, sexual, abusive, adultery, f-words, obscene language
-# Note: "damn" and variations are NOT included as they are not considered obscene
 PROFANITY_WORDS = {
-    # F-words and variations
+    # =============================================
+    # INGLES (se mantiene igual - solo resumen)
+    # =============================================
     'fuck', 'fucking', 'fucked', 'fucker', 'fuckers', 'fuckin', 'fucka', 'fuckable', 'fuckass',
-    'fuckbag', 'fuckbitch', 'fuckbook', 'fuckboy', 'fuckbrain', 'fuckbuddy', 'fuckbutt',
+    'fuckbag', 'fuckbitch', 'fuckbook', 'fuckboy', 'fuckbrain', 'fuckbuddy', 'fuckbutt', 
     'fuckd', 'fuckedup', 'fuckersucker', 'fuckface', 'fuckfest', 'fuckfreak', 'fuckfriend',
-    'fuckhead', 'fuckheads', 'fuckher', 'fuckhole', 'fuckina', 'fuckings', 'fuckingshitmotherfucker',
+    'fuckhead', 'fuckheads', 'fuckher', 'fuckhole', 'fuckina', 'fuckings', 'fuckingshitmotherfucker', 'motherfucker', 'mother fucker',
     'fuckinnuts', 'fuckinright', 'fuckit', 'fuckknob', 'fuckme', 'fuckmeat', 'fuckmehard',
     'fuckmonkey', 'fuckn', 'fucknugget', 'fucknut', 'fucknuts', 'fucknutt', 'fucknutz',
     'fuckoff', 'fuckpig', 'fuckpuppet', 'fuckr', 'fucks', 'fuckstick', 'fucktard', 'fucktards',
@@ -18,13 +20,11 @@ PROFANITY_WORDS = {
     'fuckyomama', 'fuckyou', 'fuk', 'fukah', 'fuken', 'fuker', 'fukin', 'fuking', 'fukk',
     'fukkah', 'fukken', 'fukker', 'fukkin', 'fukking', 'fuks', 'fuktard', 'fuktards',
     'fukwhit', 'fukwit', 'fuuck', 'fux', 'fux0r', 'fuxor', 'fvck', 'fvk', 'fxck',
-    # Shit words and variations
     'shit', 'shitting', 'shitty', 'shits', 'shitbox', 'shitcan', 'shitdick', 'shite',
     'shiteater', 'shited', 'shitface', 'shitfaced', 'shitfit', 'shitforbrains', 'shitfuck',
     'shitfucker', 'shitfull', 'shithapens', 'shithappens', 'shithead', 'shithouse', 'shiting',
     'shitlist', 'shitola', 'shitoutofluck', 'shitstain', 'shitted', 'shitter', 'bullshit',
     'bullshits', 'bullshitted', 'horseshit',
-    # Ass words and variations
     'ass', 'asses', 'asshole', 'assholes', 'assbag', 'assbagger', 'assbandit', 'assbang',
     'assbanged', 'assbanger', 'assbangs', 'assbite', 'assblaster', 'assclown', 'asscock',
     'asscowboy', 'asscracker', 'assface', 'assfuck', 'assfucker', 'assfukka', 'assgoblin',
@@ -34,25 +34,19 @@ PROFANITY_WORDS = {
     'asspacker', 'asspirate', 'asspuppies', 'assrammer', 'assranger', 'assshit', 'assshole',
     'asssucker', 'asswad', 'asswhole', 'asswhore', 'asswipe', 'asswipes', 'azz', 'azzhole',
     'bigass', 'dumbass', 'dumbasses', 'fatass', 'gassyass', 'gayass', 'smartass',
-    # Bitch words and variations
     'bitch', 'bitches', 'bitching', 'bitchass', 'bitched', 'bitcher', 'bitchers', 'bitchez',
     'bitchin', 'bitchslap', 'bitchtit', 'bitchy', 'biteme', 'dumbbitch', 'nastybitch',
     'skankbitch', 'skankybitch',
-    # Hell variations (damn removed - not obscene)
-    # Bastard variations
     'bastard', 'bastards', 'bast', 'bastardo', 'bastardz', 'bassterd', 'bassterds',
     'basterds', 'basterdz', 'bigbastard',
-    # Crap and piss
     'crap', 'crappy', 'crapola', 'crapper', 'piss', 'pissing', 'pissed', 'pisser', 'pisses',
     'pisshead', 'pissin', 'pissoff',
-    # Dick words and variations
     'dick', 'dicks', 'dickhead', 'dick pic', 'dick-ish', 'dickbag', 'dickbeater', 'dickbeaters',
     'dickbrain', 'dickdipper', 'dickface', 'dickflipper', 'dickforbrains', 'dickfuck',
     'dickheads', 'dickhole', 'dickish', 'dickjuice', 'dickless', 'dicklick', 'dicklicker',
     'dickman', 'dickmilk', 'dickmonger', 'dickpic', 'dickripper', 'dicksipper', 'dickslap',
     'dickslicker', 'dicksucker', 'dickwad', 'dickweasel', 'dickweed', 'dickwhipper', 'dickwod',
     'dickzipper', 'pindick', 'limpdick',
-    # Cock words and variations
     'cock', 'cocks', 'cock-head', 'cock-sucker', 'cockbite', 'cockblock', 'cockblocker',
     'cockburger', 'cockcowboy', 'cockface', 'cockfight', 'cockfucker', 'cockhead', 'cockholster',
     'cockjockey', 'cockknob', 'cockknocker', 'cockknoker', 'cocklicker', 'cocklover',
@@ -62,27 +56,21 @@ PROFANITY_WORDS = {
     'cocksucking', 'cocksucks', 'cocksuka', 'cocksukka', 'cocktease', 'cocktail', 'cocky',
     'c0ck', 'c0cks', 'c0cksucker', 'c0k', 'cawk', 'cawks', 'cazzo', 'cok', 'cokmuncher',
     'coksucka', 'kock',
-    # Pussy words and variations
     'pussy', 'pussies', 'puss', 'pussie', 'pussycat', 'pussyeater', 'pussyfucker',
     'pussylicker', 'pussylips', 'pussylover', 'pussypounder', 'pusy', 'pu55i', 'pu55y',
     'hotpussy', 'destroyyourpussy',
-    # Cunt words and variations
     'cunt', 'cunts', 'cunteyed', 'cuntface', 'cuntfuck', 'cuntfucker', 'cunthole',
     'cunthunter', 'cuntlick', 'cuntlicker', 'cuntlicking', 'cuntrag', 'cuntslut',
     'cuntsucker', 'cuntz', 'cnut', 'cnts', 'cntz', 'cunilingus', 'cunillingus', 'cunn',
     'cunnie', 'cunnilingus', 'cunntt', 'cunny', 'kunilingus', 'kunnilingus', 'kunt', 'kunts',
     'kuntz',
-    # Whore words and variations
     'whore', 'whores', 'asswhore', 'crackwhore', 'fuckwhore', 'nastywhore', 'sexwhore',
     'skankwhore', 'skankywhore', 'slutwhore', 'whorefucker', 'whorehouse', 'camwhore',
     'easyslut', 'nastyslut',
-    # Slut words and variations
     'slut', 'sluts', 'slutt', 'slutting', 'slutty', 'slutwear', 'slutwhore',
-    # Motherfucker variations
     'motherfucker', 'motherfuckers', 'motherfuck', 'motherfucked', 'motherfuckin',
     'motherfucking', 'motherfuckings', 'mothafuck', 'mothafucka', 'mothafuckaz', 'mothafucked',
     'mothafucker', 'mothafuckin', 'mothafucking', 'mothafuckings', 'mofo', 'm0f0', 'm0fo',
-    # Sexual references and body parts
     'sperm', 'semen', 'cum', 'cum face', 'cum licker', 'cumbubble', 'cumdumpster', 'cumfest',
     'cumguzzler', 'cuming', 'cumjockey', 'cumlickr', 'cumm', 'cummer', 'cummin', 'cumming',
     'cumquat', 'cumqueen', 'cums', 'cumshot', 'cumshots', 'cumslut', 'cumstain', 'cumsucker',
@@ -91,7 +79,7 @@ PROFANITY_WORDS = {
     'jizzim', 'jizzin', 'jizzn', 'jizzum', 'jism', 'jiss', 'jisim',
     'sex', 'sexual', 'sexually', 'sexed', 'sexfarm', 'sexhound', 'sexhouse', 'sexing',
     'sexkitten', 'sexpot', 'sexslave', 'sextogo', 'sextoy', 'sextoys', 'sexwhore', 'sexy',
-    'sexymoma', 'sexymoma', 'sexy-slim', 'cybersex', 'gay sex', 'gaysex', 'group sex',
+    'sexymoma', 'sexy-slim', 'cybersex', 'gay sex', 'gaysex', 'group sex',
     'hardcoresex', 'hotsex', 'livesex', 'phonesex',
     'porn', 'pornography', 'pornographic', 'pornflick', 'pornking', 'porno', 'pornprincess',
     'nude', 'naked', 'nudity', 'nudger', 'barenaked',
@@ -116,7 +104,6 @@ PROFANITY_WORDS = {
     'nipple', 'nipplering', 'nipples', 'clit', 'clitface', 'clitfuck', 'clits', 'clitty', 'cl1t', 'clitoris',
     'labia', 'hymen', 'rectum', 'anus', 'scrotum', 'teste', 'testicle', 'testicles', 'gonad', 'gonads',
     'glans', 'foreskin', 'crotch', 'crotchjockey', 'crotchmonkey', 'crotchrot', 'groin',
-    # Sexual activity and intimate scenes
     'kiss', 'kissing', 'kissed', 'kisses', 'kissass', 'smooch', 'makeout',
     'foreplay', 'intimate', 'intimacy',
     'lovemaking', 'make love', 'making love', 'getiton', 'laid',
@@ -160,10 +147,8 @@ PROFANITY_WORDS = {
     'frotting', 'spank', 'thrust', 'thrusting', 'grinding', 'grind', 'twerking', 'mounting', 'lapdance',
     'touching', 'caress', 'caressing', 'stroking', 'fondling', 'rubbing',
     'queef', 'wetspot', 'soaked', 'slippery',
-    # Adultery and cheating related
     'cheat', 'cheating', 'cheater', 'adultery', 'adulterous', 'affair', 'infidelity',
     'unfaithful', 'betrayal', 'betray', 'mistress', 'lover', 'fling', 'hookup',
-    # Obscene and vulgar terms
     'turd', 'poop', 'pooper', 'pooperscooper', 'pooping', 'dookie', 'doodoo', 'caca',
     'fart', 'farted', 'farting', 'fartknocker', 'farty', 'flatulence',
     'piss', 'pissing', 'pissed', 'pisser', 'pisses', 'pisshead', 'pissin', 'pissoff',
@@ -234,7 +219,6 @@ PROFANITY_WORDS = {
     'vulva',
     'willy', 'willie',
     'weewee', 'weenie',
-    # Additional vulgar/obscene terms
     'douche', 'douche bag', 'douche-fag', 'douchebag', 'douchebags', 'douchewaffle', 'douchey',
     'd0uch3', 'd0uche', 'douch3', 'duche',
     'dipshit', 'dipstick', 'dipship',
@@ -285,5 +269,129 @@ PROFANITY_WORDS = {
     'wank', 'wanker', 'wanking', 'williewanker',
     'willy', 'willie',
     'weewee', 'weenie',
-}
 
+    # =====================================================
+    # ESPANOL - MEXICANO COMPLETO (sin acentos)
+    # =====================================================
+    'chinga', 'chingas', 'chingada', 'chingado', 'chingaderas', 'chingaquedito',
+    'chingar', 'chingarse', 'chingue', 'chingues', 'chingon', 'chingona', 'chingonerias',
+    'chingadazo', 'chingaste',
+    'pinche', 'pinches', 'pinche guey', 'pinche viejo', 'pinche vieja',
+    'verga', 'vergas', 'vergon', 'vergona', 'verguiza', 'a la verga', 'ala verga',
+    'cabron', 'cabrona', 'cabroncito', 'cabroncita', 'cabronada', 'cabronazo',
+    'pendejo', 'pendeja', 'pendejada', 'pendejear', 'pendejito', 'pendejita', 'pendejez',
+    'mamon', 'mamona', 'mamada', 'mamar', 'mamadera', 'mamazon',
+    'culero', 'culera', 'culerada', 'culazo',
+    'cagar', 'cagada', 'cagadera', 'cagon', 'cagona', 'cagadero',
+    'joto', 'jota', 'maricon', 'marica', 'maricona',
+    'zorra', 'zorro', 'perra', 'perro',
+    'puta', 'puto', 'putita', 'putazo', 'puteria', 'putear', 'puteado', 'puteando',
+    'putamadre', 'putaculo', 'putahermana', 'putamierda', 'putiza', 'putisa',
+    'huevon', 'huevona', 'huevones', 'huevonas', 'hueva', 'huevada',
+    'chichis', 'chiches', 'tetas', 'tetotas', 'tetona',
+    'pito', 'pitito', 'pitote', 'pene',
+    'nalgas', 'nalgon', 'nalgona',
+    'panocha', 'panoche', 'panchita',
+    'chocha', 'chochita',
+    'papaya',
+    'cojones', 'cojonudo', 'cojon',
+    'joder', 'jodido', 'jodiendo', 'joderse',
+    'hostia', 'ostia', 'gilipollas', 'capullo',
+    'mierda', 'mierdero', 'mierdoso', 'mierdita',
+    'culo', 'culito', 'culazo',
+    'pedo', 'pedorro', 'pedorrera',
+    'sorete', 'orto', 'ojete',
+    'caca',
+    'cogelon', 'cogelona',
+    'ahuevado', 'ahuevada',
+    'chingueton', 'chinguetona',
+    # NUEVAS (Darkas)
+    'carajo', 'imbecil', 'farsa', 'puerca', 'salchicha', 'asesina',
+
+    # =====================================================
+    # ESPANOL - VERSIONES CON ACENTO
+    # =====================================================
+    'cabrón', 'cabróna', 'cabroncito', 'cabroncita', 'cabronada', 'cabronazo',
+    'pendejó', 'pendejá', 'pendejada', 'pendejear', 'pendejito', 'pendejita', 'pendejez',
+    'chingón', 'chingona', 'chingonerias', 'chingaquedito', 'chingadazo', 'chingaste',
+    'mamón', 'mamona', 'mamada', 'mamar', 'mamadera', 'mamazon',
+    'culero', 'culera', 'culerada', 'culazo',
+    'cagón', 'cagona', 'cagadero',
+    'maricón', 'maricona', 'marica',
+    'zorra', 'zorro', 'perra', 'perro',
+    'puta', 'puto', 'putita', 'putazo', 'puteria', 'putear', 'puteado', 'puteando', 'putó',
+    'putamadre', 'putaculo', 'putahermana', 'putamierda', 'putiza',
+    'huevón', 'huevona', 'huevones', 'huevonas', 'hueva', 'huevada',
+    'tetas', 'tetotas', 'tetona',
+    'pito', 'pitito', 'pitote', 'pene', 'pyto', 'píto',
+    'nalgas', 'nalgón', 'nalgona',
+    'panocha', 'panoche', 'panchita',
+    'chocha', 'chochita',
+    'cojones', 'cojonudo', 'cojon',
+    'jodido', 'jodiendo', 'joderse',
+    'hostia', 'ostia', 'gilipollas', 'capullo',
+    'mierda', 'mierdero', 'mierdoso', 'mierdita',
+    'culo', 'culito', 'culazo',
+    'pedo', 'pedorro', 'pedorrera',
+    'sorete', 'orto', 'ojete',
+    'caca',
+    'cogelón', 'cogelona',
+    'ahuevado', 'ahuevada',
+    'chinguetón', 'chinguetona',
+    # NUEVAS CON ACENTO (Darkas)
+    'imbécil', 'puerca', 'carajo',
+
+    # Verbos y acciones sexuales
+    'coger', 'cogida', 'cogido', 'cogiendo', 'cogemos', 'coges', 'coge',
+    'follar', 'follada', 'follado', 'follando', 'follamos', 'follas', 'folla',
+    'chupar', 'chupada', 'chupado', 'chupando', 'chupamos', 'chupas', 'chupa',
+    'jalar', 'jalada', 'jalado', 'jalando',
+    'mamar', 'mamada', 'mamado', 'mamando', 'mamamos', 'mamas', 'mama',
+    'culiar', 'culiada', 'culiado', 'culiando', 'culiamos', 'culias', 'culia',
+
+    # Terminos despectivos adicionales
+    'naco', 'nacada', 'indio', 'indiota', 'pelado', 'peladito',
+    'chota', 'chotas', 'fresón', 'fresa', 'mirrey', 'junior',
+    'pitufo', 'baboso', 'babosa', 'ratero', 'ladrón', 'ladrona',
+    'puerco', 'cerdo', 'chancho',
+
+    # =====================================================
+    # FRASES COMPLETAS (sin acentos)
+    # =====================================================
+    'chinga tu madre', 'chingue tu madre', 'chinga su madre', 'chingue su madre',
+    'vete a la chingada', 'vete a la verga', 'vete al carajo', 'vete a la mierda',
+    'vayanse a la mierda', 'vayanse a la verga',
+    'me vale verga', 'me vale madre', 'me vale pito', 'me vale cacahuate',
+    'no mames', 'no manches', 'no mames guey', 'no manches guey', 'ni mames',
+    'ni madres', 'ni mergas',
+    'que pendejo', 'que pendeja', 'que cabron', 'que cabrona', 'que chingados',
+    'que chingado', 'que chingada', 'que huevon', 'que huevona', 'que huevada',
+    'pinche guey', 'pinche viejo', 'pinche vieja', 'pinche pendejo',
+    'hijo de puta', 'hija de puta', 'hijueputa', 'hijodeputa',
+    'puta madre', 'tu puta madre', 'su puta madre',
+    'la chingada', 'a la chingada', 'ta madre',
+    'chingado', 'chingada', 'chingadera',
+    'me cago en tu madre', 'me cago en todo',
+    'te voy a matar', 'te mato', 'te parto la madre', 'te rompo la madre',
+    'que te jodan', 'que te follen', 'que te den',
+    'vale madre', 'vale verga', 'vale pito',
+    'coger con', 'cogiendo con', 'cogida con',
+    'follar con', 'follando con', 'follada con',
+    'mamar con', 'mamando con', 'mamada con',
+    'chupar con', 'chupando con', 'chupada con',
+    'jalar el ganso', 'jalar la verga', 'jalar el pescuezo',
+    'venirse', 'acabar', 'acabada',
+    'correrse', 'corrida', 'corrido',
+    'mojar la canoa', 'mojar el churro',
+    'hacer el delicioso', 'hacer el amor',
+    'sexo oral', 'analsex',
+    'chupame el pito', 'chupamela', 'chupamelo',
+    'te agarro el pito', 'te agarro la choya', 'te agarro la pata',
+    'poner una putiza', 'dar una putiza',
+    'hacer bolita', 'hacer papilla',
+    'corretear como perro',
+    # NUEVAS FRASES (Darkas)
+    'a la puta chingada', 'puta chingada', 'pinche salchicha',
+    'pendeja bola de cristal', 'ir mucho a la verga', 'como carajo',
+    'imbecil de mierda', 'estupido imbecil', 'porca asesina', 'puerca asesina'
+}
