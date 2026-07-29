@@ -54,8 +54,7 @@ python clean.py "TU/RUTA/VIDEO.mp4" "TU/RUTA/VIDEO_SALIDA.mp4" --model small --m
 #Se probo con un video del youtuber Darkar que suelen ser bastante groceros,
 especificamente este: https://www.youtube.com/watch?v=S-pFvPx_sqM por si alguien quiere probar su funcionalidad
 
-(venv) PS C:\Users\black\Desktop\prueba-final\profanity-filter-spanish> python clean.py C:\Users\black\
-Downloads\prueba.mp4 C:\Users\black\Downloads\prueba_limpia.mp4 --model small --mute-only
+(venv) PS C:\Users\black\Desktop\prueba-final\profanity-filter-spanish> python clean.py C:\Users\black\Downloads\prueba.mp4 C:\Users\black\Downloads\prueba_limpia.mp4 --model small --mute-only
 ============================================================
 AUTOMATED MOVIE CLEANER - PROFANITY FILTER
 ============================================================
