@@ -122,7 +122,7 @@ Total end-to-end processing time: 20.09 seconds
 Overall processing time written to: C:\Users\black\Downloads\prueba_limpia.total_time.txt
 
 ```
-
+--------
   
 ## 🚀 Instalación rápida
 
@@ -133,10 +133,10 @@ python -m venv venv
 # En Windows: venv\Scripts\activate
 # En Linux/Mac: source venv/bin/activate
 
-#1. INSTALA EN ORDEN PRIMERO ESTE
+# 1. INSTALA PRIMERO ESTO (PyTorch con GPU)
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
-2. #LUEGO ESTE
+# 2. LUEGO ESTO (resto de dependencias)
 pip install -r requirements.txt
 
 # Verifica que detecte la GPU correctamente
