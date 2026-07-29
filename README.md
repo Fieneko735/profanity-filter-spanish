@@ -4,6 +4,7 @@ Filtro de groserías en audio/video usando **faster-whisper** con aceleración G
 Ideal para streams, podcasts y grabaciones, esta es una version modificada con IA gracias a la ayuda de Deepseek, no se nada sobre codificacion por lo que no podria dar soporte o algo por el estilo. 
 
 Simplemente es un pequeño proyecto para filtrar grocerias en español, principalmente español mexicano. Aunque no llega a procesar todas asi que si alguien que sepa codificar correctamente quiere modificarlo adelante jeje al fin de cuentas esta version para filtrar en español fue generada con ayuda de la IA por lo que no se que tan bien hecho este, aunque funciona correctamente en los videos con los que probe a filtrar se le llega a ir alguna que otra groseria. La verdad mejora bastante el contenido para que no contenga lenguaje demasiado grosero para poder usarlo en redes o en el lugar donde lo quieran subir.
+
 Quien quiera aportar para tener un mejor filtrado en español puede hacerlo modificando el archivo profanity_words.py, es totalmente bienvenida cualquier ayuda para mejorar la exactitud.
 
 ## ⚡ Características
