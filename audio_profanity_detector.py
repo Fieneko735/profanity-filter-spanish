@@ -38,17 +38,17 @@ class AudioProfanityDetector:
             # Check for GPU availability
             device = "cuda" if torch.cuda.is_available() else "cpu"
             if device == "cuda":
-                print(f"  ✓ GPU detected: {torch.cuda.get_device_name(0)}")
+                print(f"  [OK] GPU detected: {torch.cuda.get_device_name(0)}")
                 print(f"  Using GPU for faster transcription")
             else:
-                print(f"  ⚠ Using CPU (GPU not available) - transcription will be slower")
-                print(f"  💡 Tip: For faster processing, use --whisper-model tiny or provide existing subtitles")
+                print(f"  [WARN] Using CPU (GPU not available) - transcription will be slower")
+                print(f"  [INFO] Tip: For faster processing, use --whisper-model tiny or provide existing subtitles")
             
             # Suppress FP16 warning on CPU (expected behavior)
             warnings.filterwarnings('ignore', message='FP16 is not supported on CPU')
             print(f"  Loading Whisper model: {self.model_size}...")
             self.whisper_model = whisper.load_model(self.model_size, device=device)
-            print(f"  ✓ Whisper model loaded on {device.upper()}")
+            print(f"  [OK] Whisper model loaded on {device.upper()}")
         except ImportError:
             raise ImportError(
                 "Whisper not installed. Install with: pip install openai-whisper\n"
@@ -138,7 +138,7 @@ class AudioProfanityDetector:
                 '-y', str(audio_path)
             ]
             subprocess.run(cmd, capture_output=True, check=True)
-            print(f"  ✓ Audio extracted")
+            print(f"  [OK] Audio extracted")
             
             # Transcribe with Whisper
             import torch
@@ -155,12 +155,12 @@ class AudioProfanityDetector:
                     # CPU: 2-5x real-time
                     est_min = duration / 60 * 2
                     est_max = duration / 60 * 5
-                print(f"  ⏳ Estimated time: {est_min:.1f}-{est_max:.1f} minutes for {duration/60:.1f} min video")
+                print(f"  [WAIT] Estimated time: {est_min:.1f}-{est_max:.1f} minutes for {duration/60:.1f} min video")
                 if device == "cpu" and duration > 3600:  # > 1 hour
-                    print(f"  ⚠ Long video on CPU - this may take {est_max:.0f} minutes or more")
-                    print(f"  💡 Consider using --whisper-model tiny for faster processing")
+                    print(f"  [WARN] Long video on CPU - this may take {est_max:.0f} minutes or more")
+                    print(f"  [INFO] Consider using --whisper-model tiny for faster processing")
             else:
-                print(f"  ⏳ This may take several minutes, please wait...")
+                print(f"  [WAIT] This may take several minutes, please wait...")
             
             import warnings
             # Suppress FP16 warning during transcription (expected on CPU)
@@ -174,7 +174,7 @@ class AudioProfanityDetector:
                     verbose=True if duration and duration > 600 else False  # Show progress for videos > 10 min
                 )
             
-            print(f"  ✓ Transcription complete")
+            print(f"  [OK] Transcription complete")
             
             # ---------- NEW: Detect profanity in whole segments (for phrases) ----------
             for segment in result.get('segments', []):
@@ -228,16 +228,16 @@ class AudioProfanityDetector:
                         print(f"    Checked {words_checked}/{total_words} words, found {len(profanity_segments)} profanity...", end='\r')
             
             print()  # New line after progress
-            print(f"  ✓ Profanity search complete: {len(profanity_segments)} profanity word(s) found")
+            print(f"  [OK] Profanity search complete: {len(profanity_segments)} profanity word(s) found")
             
             # Merge nearby profanity (within 1 second)
             if profanity_segments:
                 print(f"  Merging nearby profanity segments...")
                 profanity_segments = self._merge_nearby(profanity_segments)
-                print(f"  ✓ Merged into {len(profanity_segments)} segment(s)")
+                print(f"  [OK] Merged into {len(profanity_segments)} segment(s)")
         
         except Exception as e:
-            print(f"  ✗ Error during audio profanity detection: {e}")
+            print(f"  [ERROR] Error during audio profanity detection: {e}")
             import traceback
             print(f"  Full error details:")
             traceback.print_exc()
@@ -250,9 +250,9 @@ class AudioProfanityDetector:
                 shutil.rmtree(temp_dir)
         
         if not profanity_segments:
-            print(f"  ⚠ No profanity segments detected or detection failed")
+            print(f"  [WARN] No profanity segments detected or detection failed")
         else:
-            print(f"  ✓ Successfully detected {len(profanity_segments)} profanity segment(s)")
+            print(f"  [OK] Successfully detected {len(profanity_segments)} profanity segment(s)")
         
         return profanity_segments
     

@@ -40,20 +40,20 @@ class AudioProfanityDetectorFast:
         self.min_wpm = min_wpm
         self.auto_upgrade = auto_upgrade
         self._upgraded_once = False
-        self._cuda_failed = False  # Flag para recordar que CUDA falló
+        self._cuda_failed = False
         self.whisper_model = None
         self._device = self._detect_best_device()
         self._init_whisper()
 
     def _detect_best_device(self) -> str:
         """Detecta el mejor dispositivo disponible: CUDA > DirectML > CPU"""
-        print("  🔍 Detecting best available device...")
+        print("  [INFO] Detecting best available device...")
         
         # 1. Intentar CUDA
         try:
             import torch
             if torch.cuda.is_available():
-                print(f"  ✅ CUDA detected: {torch.cuda.get_device_name(0)}")
+                print(f"  [OK] CUDA detected: {torch.cuda.get_device_name(0)}")
                 return 'cuda'
         except:
             pass
@@ -62,13 +62,13 @@ class AudioProfanityDetectorFast:
         try:
             import torch_directml
             if torch_directml.is_available():
-                print("  ✅ DirectML detected (Windows GPU acceleration)")
+                print("  [OK] DirectML detected (Windows GPU acceleration)")
                 return 'dml'
         except:
             pass
         
         # 3. Fallback a CPU
-        print("  ℹ️ No GPU acceleration found. Using CPU (slower).")
+        print("  [INFO] No GPU acceleration found. Using CPU (slower).")
         return 'cpu'
 
     def _init_whisper(self):
@@ -78,7 +78,7 @@ class AudioProfanityDetectorFast:
             
             # Si ya marcamos que CUDA falló, forzar CPU
             if self._cuda_failed:
-                print("  ⚠️ CUDA previously failed. Forcing CPU mode.")
+                print("  [WARN] CUDA previously failed. Forcing CPU mode.")
                 self._device = 'cpu'
             
             # Lista de compute types a probar
@@ -105,17 +105,17 @@ class AudioProfanityDetectorFast:
                         cpu_threads=8 if self._device == 'cpu' else 0,
                         num_workers=4 if self._device == 'cpu' else 1
                     )
-                    print(f"  ✅ Faster-whisper loaded! (device={self._device}, compute_type={compute_type})")
+                    print(f"  [OK] Faster-whisper loaded! (device={self._device}, compute_type={compute_type})")
                     model_loaded = True
                     break
                 except Exception as e:
-                    print(f"    ⚠️ Error with compute_type={compute_type}: {e}")
+                    print(f"    [WARN] Error with compute_type={compute_type}: {e}")
                     last_error = e
                     continue
             
             # Si ningún compute_type funcionó, intentar con CPU como último recurso
             if not model_loaded:
-                print("  ⚠️ GPU initialization failed. Falling back to CPU...")
+                print("  [WARN] GPU initialization failed. Falling back to CPU...")
                 self._device = 'cpu'
                 for compute_type in ['int8_float16', 'int8', 'float32']:
                     try:
@@ -126,11 +126,11 @@ class AudioProfanityDetectorFast:
                             cpu_threads=8,
                             num_workers=4
                         )
-                        print(f"  ✅ Faster-whisper loaded on CPU (compute_type={compute_type})")
+                        print(f"  [OK] Faster-whisper loaded on CPU (compute_type={compute_type})")
                         model_loaded = True
                         break
                     except Exception as e:
-                        print(f"    ⚠️ CPU error: {e}")
+                        print(f"    [WARN] CPU error: {e}")
                         continue
                 
                 if not model_loaded:
@@ -161,8 +161,8 @@ class AudioProfanityDetectorFast:
             error_msg = str(e).lower()
             # Si el error es por CUDA (cublas, cuda, etc.)
             if "cublas" in error_msg or "cuda" in error_msg or "library" in error_msg:
-                print(f"  ⚠️ CUDA runtime error detected: {e}")
-                print(f"  🔄 Automatically switching to CPU and retrying...")
+                print(f"  [WARN] CUDA runtime error detected: {e}")
+                print(f"  [INFO] Automatically switching to CPU and retrying...")
                 
                 # Marcar que CUDA falló
                 self._cuda_failed = True
@@ -171,7 +171,7 @@ class AudioProfanityDetectorFast:
                 self._init_whisper()
                 
                 # Reintentar transcripción en CPU
-                print(f"  ⏳ Retrying transcription on CPU...")
+                print(f"  [WAIT] Retrying transcription on CPU...")
                 segments, info = self.whisper_model.transcribe(
                     str(audio_path),
                     beam_size=5,
@@ -224,7 +224,7 @@ class AudioProfanityDetectorFast:
                 '-y', str(audio_path)
             ]
             subprocess.run(cmd, capture_output=True, check=True)
-            print(f"  ✓ Audio extracted")
+            print(f"  [OK] Audio extracted")
             
             # Transcribe with fallback
             print(f"  Transcribing audio with faster-whisper ({self.model_size} model)...")
@@ -234,7 +234,7 @@ class AudioProfanityDetectorFast:
                     est_time = duration / 30
                 else:
                     est_time = duration / 5
-                print(f"  ⏳ Estimated time: ~{est_time:.1f} seconds for {duration/60:.1f} min video")
+                print(f"  [WAIT] Estimated time: ~{est_time:.1f} seconds for {duration/60:.1f} min video")
             
             start_time = time.time()
             
@@ -247,7 +247,7 @@ class AudioProfanityDetectorFast:
                     all_words.append(word)
             
             elapsed = time.time() - start_time
-            print(f"  ✓ Transcription complete in {elapsed:.1f}s ({info.duration/elapsed:.1f}x real-time)")
+            print(f"  [OK] Transcription complete in {elapsed:.1f}s ({info.duration/elapsed:.1f}x real-time)")
 
             # WPM diagnostic
             if info.duration and info.duration > 0:
@@ -256,7 +256,7 @@ class AudioProfanityDetectorFast:
                 if wpm < self.min_wpm and self.auto_upgrade and not self._upgraded_once:
                     next_model = self._next_model(self.model_size)
                     if next_model:
-                        print(f"  ↻ Auto-upgrade enabled: retrying with larger model '{next_model}'...")
+                        print(f"  [INFO] Auto-upgrade enabled: retrying with larger model '{next_model}'...")
                         self.model_size = next_model
                         self._upgraded_once = True
                         self._init_whisper()
@@ -268,28 +268,28 @@ class AudioProfanityDetectorFast:
                     with open(self.dump_transcript_path, 'w') as f:
                         for w in all_words:
                             f.write(f"{w.start:.3f}\t{w.end:.3f}\t{w.word.strip()}\n")
-                    print(f"  ✓ Raw transcript dumped to: {self.dump_transcript_path}")
+                    print(f"  [OK] Raw transcript dumped to: {self.dump_transcript_path}")
                 except Exception as e:
-                    print(f"  ⚠ Failed to dump transcript: {e}")
+                    print(f"  [WARN] Failed to dump transcript: {e}")
             
             # Detect profanity
             print(f"  Searching {len(all_words)} words for profanity...")
             profanity_segments = self._detect_profanity_in_words(all_words)
             
             if profanity_segments:
-                print(f"  ✓ Profanity search complete: {len(profanity_segments)} segment(s) found")
+                print(f"  [OK] Profanity search complete: {len(profanity_segments)} segment(s) found")
                 print(f"  Merging nearby profanity segments...")
                 profanity_segments = self._merge_nearby(profanity_segments)
-                print(f"  ✓ Merged into {len(profanity_segments)} segment(s)")
+                print(f"  [OK] Merged into {len(profanity_segments)} segment(s)")
             else:
-                print(f"  ⚠ No profanity segments detected")
+                print(f"  [WARN] No profanity segments detected")
             
         except FileNotFoundError as e:
             raise MissingBinaryError(
                 "Required media tool not found. Please install FFmpeg (ffmpeg and ffprobe) and ensure both are in PATH."
             ) from e
         except Exception as e:
-            print(f"  ✗ Error during audio profanity detection: {e}")
+            print(f"  [ERROR] Error during audio profanity detection: {e}")
             import traceback
             traceback.print_exc()
             profanity_segments = []
@@ -325,7 +325,7 @@ class AudioProfanityDetectorFast:
         """Retry transcription after model upgrade."""
         profanity_segments = []
         try:
-            print(f"  ▶ Re-transcribing with upgraded model '{self.model_size}'...")
+            print(f"  [INFO] Retranscribing with upgraded model '{self.model_size}'...")
             start_time = time.time()
             # Usar fallback también aquí
             segments, info = self._transcribe_with_fallback(audio_path)
@@ -334,7 +334,7 @@ class AudioProfanityDetectorFast:
                 for word in segment.words:
                     all_words.append(word)
             elapsed = time.time() - start_time
-            print(f"  ✓ Upgrade transcription complete in {elapsed:.1f}s ({info.duration/elapsed:.1f}x real-time)")
+            print(f"  [OK] Upgrade transcription complete in {elapsed:.1f}s ({info.duration/elapsed:.1f}x real-time)")
             wpm = len(all_words) / (info.duration / 60.0) if info.duration else 0
             print(f"  Transcript stats (upgraded): {len(all_words)} words, {wpm:.1f} WPM")
             if self.dump_transcript_path:
@@ -342,13 +342,13 @@ class AudioProfanityDetectorFast:
                     with open(self.dump_transcript_path, 'w') as f:
                         for w in all_words:
                             f.write(f"{w.start:.3f}\t{w.end:.3f}\t{w.word.strip()}\n")
-                    print(f"  ✓ Raw transcript dumped to: {self.dump_transcript_path}")
+                    print(f"  [OK] Raw transcript dumped to: {self.dump_transcript_path}")
                 except Exception as e:
-                    print(f"  ⚠ Failed to dump transcript: {e}")
+                    print(f"  [WARN] Failed to dump transcript: {e}")
             print(f"  Searching {len(all_words)} words for profanity...")
             profanity_segments = self._detect_profanity_in_words(all_words)
         except Exception as e:
-            print(f"  ✗ Error during upgraded transcription: {e}")
+            print(f"  [ERROR] Error during upgraded transcription: {e}")
         return profanity_segments
     
     def _merge_nearby(self, segments: List[Tuple[float, float, str]]) -> List[Tuple[float, float, str]]:

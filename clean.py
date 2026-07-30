@@ -7,6 +7,13 @@ Usage: python clean.py input.mp4 output.mp4
 import argparse
 import sys
 import os
+import io  # Añadido para el parche de codificación
+
+# --- PATCH DE CODIFICACIÓN (SOLUCIONA ERRORES DE EMOJIS EN WINDOWS) ---
+# Forzar salida UTF-8 y reemplazar caracteres no soportados
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+# --------------------------------------------------------------------
 
 # Ensure unbuffered output for real-time verbose display
 os.environ['PYTHONUNBUFFERED'] = '1'
@@ -18,7 +25,7 @@ from audio_profanity_detector_fast import AudioProfanityDetectorFast, MissingBin
 from video_cutter import VideoCutter
 from timestamp_merger import TimestampMerger
 from subtitle_processor import SubtitleProcessor
-# from generate_subtitles import generate_subtitles   # <--- DESACTIVADO: ya no se generan subtítulos automáticos
+# from generate_subtitles import generate_subtitles   # <--- DESACTIVADO
 
 
 def main():
@@ -29,7 +36,7 @@ def main():
     )
     parser.add_argument('input', type=str, help='Input video file (MP4, MKV, etc.)')
     parser.add_argument('output', type=str, nargs='?', default=None,
-                       help='Output cleaned video file (optional - defaults to input_cleaned.ext)')
+                       help='Output cleaned video file (optional - defaults to input_clean.ext in the same folder)')
     parser.add_argument('--subs', type=str, default=None,
                        help='Use existing subtitle file instead of transcribing audio (SRT or VTT format). By default, the tool auto-detects a matching subtitle next to the video (same basename). Only use this flag if the subs are in a different location/name.')
     parser.add_argument('--srt-window', type=float, default=None,
@@ -68,26 +75,40 @@ def main():
                        help='Disable automatic model upgrade.')
     parser.add_argument('--hybrid', action='store_true',
                        help='Use hybrid detection: subtitles first (fast), then audio transcription for suspicious segments (maintains 99-100%% quality, 10-20x faster)')
-    
+    # NUEVO: argumento para carpeta de salida
+    parser.add_argument('--output-dir', type=str, default=None,
+                       help='Carpeta donde se guardará el video procesado. Si no se especifica, se guarda en el mismo directorio que el video de entrada con sufijo _clean.')
+
     args = parser.parse_args()
-    
+
     input_path = Path(args.input)
-    
-    # Auto-generate output filename if not provided
+
+    # ---- NUEVA LÓGICA DE GENERACIÓN DE output_path ----
+    # Prioridad: 1) output (si se da), 2) --output-dir, 3) misma carpeta que input
     if args.output:
         output_path = Path(args.output)
     else:
-        # Generate output filename: input_cleaned.ext
-        output_path = input_path.parent / f"{input_path.stem}_cleaned{input_path.suffix}"
-    
+        # Determinar el directorio de salida
+        if args.output_dir:
+            output_dir = Path(args.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            output_dir = input_path.parent  # Misma carpeta que el video de entrada
+
+        # Nombre base: sin extensión
+        base_name = input_path.stem
+        # Sufijo _clean
+        output_filename = f"{base_name}_clean{input_path.suffix}"
+        output_path = output_dir / output_filename
+    # ----------------------------------------------------
+
     if not input_path.exists():
         print(f"Error: Input file not found: {input_path}")
         sys.exit(1)
-    
+
     # Determine subtitle source: prefer auto-detected subs with same basename; else use --subs; else none
     subtitle_input = None
     if args.subs:
-        # Explicit subtitle path provided
         candidate = Path(args.subs)
         if candidate.exists():
             subtitle_input = candidate
@@ -95,27 +116,25 @@ def main():
             print(f"Warning: Subtitle file not found: {candidate}")
             print(f"Falling back to auto-detect and/or audio transcription...")
     else:
-        # Auto-detect subtitles with same basename in the input directory
         srt_candidate = input_path.with_suffix('.srt')
         vtt_candidate = input_path.with_suffix('.vtt')
         if srt_candidate.exists():
             subtitle_input = srt_candidate
         elif vtt_candidate.exists():
             subtitle_input = vtt_candidate
-    
+
     print("=" * 60)
     print("AUTOMATED MOVIE CLEANER - PROFANITY FILTER")
     print("=" * 60)
     subtitle_processor = SubtitleProcessor() if subtitle_input else None
-    
+
     # Step 1: Detect profanity using AI transcription (faster-whisper)
-    # Uses word-level timestamps for precise, accurate profanity removal
     audio_segments = []
-    
+
     # Hybrid detection: subtitles first, then audio for suspicious segments
     if args.hybrid and subtitle_input:
         print("Using HYBRID detection mode (subtitles + selective audio transcription)")
-        print("This maintains 99-100%% quality while being 10-20x faster")
+        print("This maintains 99-100% quality while being 10-20x faster")
         print()
         try:
             from hybrid_profanity_detector import HybridProfanityDetector
@@ -127,13 +146,13 @@ def main():
             audio_segments = hybrid_detector.detect(input_path, subtitle_input)
             print()
         except Exception as e:
-            print(f"  ✗ ERROR: Hybrid detection failed: {e}")
+            print(f"  [ERROR] ERROR: Hybrid detection failed: {e}")
             import traceback
             traceback.print_exc()
             print(f"  Falling back to standard audio detection...")
             print()
-            args.hybrid = False  # Fall back to standard
-    
+            args.hybrid = False
+
     # Default: audio-only detection for precise per-word cuts
     if not args.hybrid:
         use_subs_for_detection = bool(subtitle_input) and args.use_subs_detection and not args.force_audio
@@ -144,12 +163,12 @@ def main():
             if subtitle_processor:
                 subtitle_segments = subtitle_processor.detect_profanity_segments(subtitle_input, srt_window=args.srt_window, pad=args.pad)
                 if subtitle_segments:
-                    print(f"  ✓ Found {len(subtitle_segments)} subtitle-based segment(s) to remove")
+                    print(f"  [OK] Found {len(subtitle_segments)} subtitle-based segment(s) to remove")
                     for start, end, words in subtitle_segments:
                         print(f"    - {start:.2f}s to {end:.2f}s: '{words}'")
                     audio_segments = subtitle_segments
                 else:
-                    print("  ⚠ No profanity segments detected from subtitles")
+                    print("  [WARN] No profanity segments detected from subtitles")
             print("-" * 60)
             print()
         else:
@@ -171,22 +190,21 @@ def main():
                 for start, end, word in audio_segments:
                     print(f"    - {start:.2f}s to {end:.2f}s ({end-start:.2f}s): '{word}'")
             else:
-                print("    ✓ No profanity detected in audio")
+                print("    [OK] No profanity detected in audio")
             print()
         except MissingBinaryError as e:
-            print(f"  ✗ ERROR: {e}")
+            print(f"  [ERROR] ERROR: {e}")
             print("  Install FFmpeg and ensure ffmpeg/ffprobe are in PATH, then rerun.")
             print("  Windows: download FFmpeg, add its bin directory to PATH, then reopen terminal.")
             sys.exit(1)
         except Exception as e:
-            print(f"  ✗ ERROR: Audio profanity detection failed: {e}")
+            print(f"  [ERROR] ERROR: Audio profanity detection failed: {e}")
             import traceback
             traceback.print_exc()
             print(f"  Continuing without audio profanity detection...")
             print()
             audio_segments = []
-    
-    
+
     # Step 2: Add manual timestamps if specified
     manual_segments = []
     if args.remove_timestamps:
@@ -201,22 +219,18 @@ def main():
             except ValueError:
                 print(f"  Warning: Invalid timestamp format: {ts_pair}")
         print()
-    
-    # Step 2: Merge segments (matches Hugging Face Gradio app exactly)
+
+    # Step 2: Merge segments
     print("Step 2: Merging segments...")
     print(f"  Audio segments: {len(audio_segments)}")
     merger = TimestampMerger(merge_gap=args.merge_gap)
     all_segments = []
-    
-    # Use audio segments (word-level timestamps from Whisper)
-    # This matches the Gradio app which uses ONLY audio transcription
+
     if audio_segments:
-        # Convert audio segments from (start, end, word) to (start, end)
         audio_segments_tuples = [(start, end) for start, end, word in audio_segments]
         all_segments = merger.merge([], audio_segments_tuples)
         print(f"  Merged into {len(all_segments)} segment(s) to remove")
-    
-    # Add manual segments if specified
+
     if manual_segments:
         print(f"  Manual segments: {len(manual_segments)}")
         all_segments = merger.merge(all_segments, manual_segments)
@@ -228,7 +242,7 @@ def main():
         print("    WARNING: No segments to remove!")
     print()
 
-    # Safety expansion: dilate segments slightly to catch partial profanities
+    # Safety expansion
     if all_segments:
         print("Step 2b: Expanding segments to catch clipped syllables...")
         expanded = []
@@ -236,19 +250,17 @@ def main():
             new_start = max(0.0, start - args.expand_pad)
             new_end = end + args.expand_pad
             expanded.append((new_start, new_end))
-        # Re-merge after expansion to combine overlaps
         all_segments = TimestampMerger(merge_gap=args.merge_gap).merge([], expanded)
         for i, (start, end) in enumerate(all_segments, 1):
             print(f"    {i}. {start:.2f}s to {end:.2f}s ({end-start:.2f}s)")
         print()
-    
+
     if not all_segments:
         print("No profanity detected. Copying video as-is...")
         import shutil
         shutil.copy2(input_path, output_path)
         print(f"Output saved to: {output_path}")
-        
-        # Process subtitles to remove profanity words even if no video cuts needed
+
         if subtitle_input:
             output_base = output_path.stem
             output_dir = output_path.parent
@@ -258,8 +270,7 @@ def main():
                 output_subtitle = output_dir / f"{output_base}.vtt"
             else:
                 output_subtitle = output_dir / f"{output_base}{subtitle_input.suffix}"
-            
-            # Process subtitles to filter profanity words
+
             subtitle_processor = SubtitleProcessor()
             if subtitle_input.suffix.lower() == '.srt':
                 subtitle_processor.process_srt(subtitle_input, output_subtitle, [])
@@ -268,9 +279,9 @@ def main():
             else:
                 subtitle_processor.process_srt(subtitle_input, output_subtitle, [])
             print(f"Cleaned subtitles saved to: {output_subtitle}")
-        
+
         return
-    
+
     # Step 3: Cut out segments
     print("Step 3: Processing detected segments in video...")
     print("-" * 60)
@@ -290,7 +301,6 @@ def main():
     elapsed = time.time() - cutting_start
     print("-" * 60)
     print(f"Total video cutting time: {elapsed:.2f} seconds")
-    # Always log cutting time next to output video as a sidecar file
     try:
         sidecar_time = output_path.with_suffix('.time.txt')
         with open(sidecar_time, 'w') as f:
@@ -298,27 +308,19 @@ def main():
         print(f"Cutting time written to: {sidecar_time}")
     except Exception as e:
         print(f"Warning: failed to write cutting-time file: {e}")
-    
+
     if not success:
         print("Error: Failed to process video")
         sys.exit(1)
-    
-    # ======================================================================
-    # MODIFICACIÓN: DESACTIVADA GENERACIÓN DE SUBTÍTULOS AUTOMÁTICOS
-    # Ya no se generan subtítulos automáticos. Solo se procesan si el usuario
-    # proporcionó un archivo de subtítulos de entrada (--subs o detección automática).
-    # ======================================================================
+
     output_subtitle = None
     if subtitle_input:
         print("Step 4: Processing subtitles...")
-        
-        # Determine output subtitle path
+
         output_base = output_path.stem
         output_dir = output_path.parent
-        
-        # Adjust subtitles based on removed segments
         segments_for_subs = all_segments
-        
+
         if subtitle_input.suffix.lower() == '.srt':
             output_subtitle = output_dir / f"{output_base}.srt"
             success = subtitle_processor.process_srt(subtitle_input, output_subtitle, segments_for_subs)
@@ -329,27 +331,17 @@ def main():
             output_subtitle = output_dir / f"{output_base}{subtitle_input.suffix}"
             print(f"  Warning: Unknown subtitle format: {subtitle_input.suffix}, attempting to process as SRT...")
             success = subtitle_processor.process_srt(subtitle_input, output_subtitle, segments_for_subs)
-        
+
         if success:
-            print(f"  ✓ Cleaned subtitles saved to: {output_subtitle}")
+            print(f"  [OK] Cleaned subtitles saved to: {output_subtitle}")
         else:
-            print(f"  ⚠ Warning: Failed to process subtitles")
+            print(f"  [WARN] Warning: Failed to process subtitles")
             output_subtitle = None
         print()
     else:
-        # ----------------------------------------------------------
-        # BLOQUE DESACTIVADO: Generación automática de subtítulos
-        # ----------------------------------------------------------
-        # print("Step 4: No subtitle input provided. Skipping subtitle generation.")
-        # No se genera ningún subtítulo, ni se incrusta en el vídeo.
+        # Subtitles not generated
         pass
-    
-    # ======================================================================
-    # MODIFICACIÓN: ELIMINADA LA INCRUSTACIÓN DE SUBTÍTULOS EN EL CONTENEDOR
-    # Ya no se añade ninguna pista de subtítulos al vídeo de salida.
-    # ======================================================================
-    # El bloque que hacía muxing de subtítulos ha sido eliminado.
-    
+
     print("=" * 60)
     print("SUCCESS!")
     print("=" * 60)
@@ -361,10 +353,8 @@ def main():
     print(f"Removed {len(all_segments)} segment(s)")
     total_removed = sum(end - start for start, end in all_segments)
     print(f"Total time removed: {total_removed:.2f} seconds")
-    # Overall runtime (end-to-end)
     overall_elapsed = time.time() - overall_start_time
     print(f"Total end-to-end processing time: {overall_elapsed:.2f} seconds")
-    # Always log overall time next to output
     try:
         sidecar_total = output_path.with_suffix('.total_time.txt')
         with open(sidecar_total, 'w') as f:
